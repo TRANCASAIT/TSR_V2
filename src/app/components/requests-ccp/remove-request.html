@@ -1,0 +1,9 @@
+<div class="container">
+  <div mat-dialog-content>
+      <p style="color: black;">¿Esta seguro de eliminar el folio: <b>{{folio}} - {{customer}}</b>?</p>
+  </div>
+  <div mat-dialog-actions align="center">
+      <button mat-button (click)="onYesClick()" cdkFocusInitial class="actionBtn">SI</button>
+      <button mat-button (click)="closeModal()" class="closeBtn">NO</button>
+  </div>
+</div>

@@ -1,0 +1,4 @@
+[
+  { "redirect": "/nav-sa/requests",  "type": "link","name": "Requests", "icon": "local_shipping" },
+  { "redirect": "/nav-sa/requests-ccp",  "type": "link","name": "Requests CCP", "icon": "local_shipping" }
+]

@@ -1,1 +1,106 @@
-/* You can add global styles to this file, and also import other style files */
+@use '@angular/material' as mat;
+
+
+@include mat.core();
+
+$TSR_V2-primary: mat.define-palette(mat.$indigo-palette);
+$TSR_V2-accent: mat.define-palette(mat.$pink-palette, A200, A100, A400);
+
+
+$TSR_V2-warn: mat.define-palette(mat.$red-palette);
+
+$TSR_V2-theme: mat.define-light-theme((color: (primary: $TSR_V2-primary,
+        accent: $TSR_V2-accent,
+        warn: $TSR_V2-warn,
+      )));
+
+@include mat.all-component-themes($TSR_V2-theme);
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+
+:root {
+  --primary-color: #153d77;
+  --secondary-color: #6c757d;
+  --white-color: #ffffff;
+  --success-color: rgb(36, 122, 36);
+  --delete-color: #c70014;
+  --background-color: #f2f2f2;
+}
+
+.success-snackbar {
+  color: rgb(255, 255, 255);
+  --mdc-snackbar-container-color: var(--success-color);
+
+  .mat-simple-snackbar-action {
+    color: rgb(255, 255, 255);
+  }
+}
+
+.error-snackbar {
+  max-width: max-content !important;
+  color: white;
+  --mdc-snackbar-container-color: var(--delete-color);
+  border-color: #c70014;
+
+  .mat-simple-snackbar-action {
+    color: white;
+  }
+}
+
+.light-success-snackbar {
+  color: #ffffff;
+  --mdc-snackbar-container-color: #ffffff;
+
+  .mat-simple-snackbar-action {
+    color: rgb(0, 189, 0);
+  }
+}
+
+.light-error-snackbar {
+  color: #c70014;
+  --mdc-snackbar-container-color: #c70014;
+  border-color: #c70014;
+
+  .mat-simple-snackbar-action {
+    color: darkred;
+  }
+}
+
+.btn-right {
+  float: right;
+}
+
+.activo {
+  color: green
+}
+
+.inactivo {
+  cursor: pointer;
+  color: red
+}
+
+mat-card {
+  margin-top: .5em;
+  margin-bottom: .5em;
+}
+
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 50vh;
+}
+
+.mt-field {
+  width: 100%;
+  margin: 5px;
+}
