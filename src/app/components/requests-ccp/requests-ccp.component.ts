@@ -1,4 +1,4 @@
-import { Component, ElementRef, Inject, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, Inject, OnInit, ViewChild } from '@angular/core';
 import { MatPaginator } from '@angular/material/paginator';
 import { Observable, ReplaySubject, Subject, take, takeUntil } from 'rxjs';
 import { ApiService } from '../../services/api.service';
@@ -38,14 +38,15 @@ import { Router } from '@angular/router';
 import { ProgressSpinnerMode } from '@angular/material/progress-spinner';
 import { SignalRService } from '../../services/signal-r.service';
 import * as signalR from '@microsoft/signalr';
-import {  topToBottomAnimation } from '../../animations/tsr_animations';
+import {  bottomToTopAnimation, topToBottomAnimation } from '../../animations/tsr_animations';
+import { HelpersService } from '../../services/helpers.service';
 
 
 @Component({
   selector: 'app-requests-ccp',
   templateUrl: './requests-ccp.component.html',
   styleUrl: './requests-ccp.component.scss',
-  animations: [ topToBottomAnimation]
+  animations: [ bottomToTopAnimation]
 })
 export class RequestsCcpComponent implements OnInit {
   //table options
@@ -100,7 +101,7 @@ export class RequestsCcpComponent implements OnInit {
   isCustomer = false;
   customerType: string = '';
   filterValue: string = '';
-  showTable: boolean = false;
+  showTable: boolean = true;
   filterEvent!: Event;
 
   constructor(
@@ -110,6 +111,8 @@ export class RequestsCcpComponent implements OnInit {
     public logOut: LogoutService,
     private jwt: JwtService,
     private chatService: SignalRService,
+    private cdr: ChangeDetectorRef,
+    private helpers: HelpersService,
   ) {}
 
   async ngOnInit() {
@@ -119,41 +122,28 @@ export class RequestsCcpComponent implements OnInit {
     await this.getOperations();
     await this.getCustomers();
     await this.getStatus();
-    this.getSr();
+    this.spinner = true;
+    setTimeout(() => {
+      this.getSr();
+    }, 2000);
   }
 
-  getSr() {
-    this.spinner = true;
-    this.API.getServiceRequest().subscribe({
+  async getSr() {
+    await this.API.getServiceRequest().subscribe({
       next: (res: any) => {
+        console.log(res);
+
         this.spinner = false;
         this.dataSource = new MatTableDataSource<any>(res);
         this.dataSource.paginator = this.paginator1;
         this.dataSource.data.length = res.length;
         this.dataObs$ = this.dataSource.connect();
         this.checkSearchBar();
+        this.showTable = false;
       },
       error: (err: any) => {
         this.spinner = false;
-        if (err.error !== undefined) {
-          const { state, message } = err.error;
-          if (state === 1) {
-            this._snackBar.snackBarMessage(message, false);
-          } else if (state === 401) {
-            this._snackBar.snackBarMessage(message, false);
-            this.logOut.logOut();
-          } else {
-            this._snackBar.snackBarMessage(
-              'Algo ha salido mal, intente mas tarde.',
-              false
-            );
-          }
-        } else {
-          this._snackBar.snackBarMessage(
-            'Algo ha salido mal, intente mas tarde.',
-            false
-          );
-        }
+        this.helpers.returnError(err);
       },
     });
   }
@@ -214,7 +204,6 @@ export class RequestsCcpComponent implements OnInit {
       priority = null;
     }
 
-    //call
     let _obj = {
       StatusId: status,
       OperationTypeId: operation,
@@ -226,36 +215,20 @@ export class RequestsCcpComponent implements OnInit {
       Priority: priority,
     };
 
-    // this.API.getServicesFiltered(_obj).subscribe({
-    //   next: (res: any) => {
-    //     //stop spinner
-    //     this.spinner = false;
-    //     this.dataSource = new MatTableDataSource<any>(res);
-    //     this.dataSource.paginator = this.paginator;
-    //     this.dataSource.data.length = res.length;
-    //     this.dataObs$ = this.dataSource.connect();
-    //   },
-    //   error: (err) => {
-    //     //stop spinner
-    //     this.dataSource = new MatTableDataSource<any>();
-    //     this.spinner = false;
-    //     if (err.status !== undefined) {
-    //       if (err.error.state !== undefined) {
-    //         if (err.error.state === 1) {
-    //           this._snackBar.snackBarMessage(err.error.message, false);
-    //         }else if(err.error.state === 401){
-    //           this.router.navigateByUrl('/login');
-    //         }
-    //       } else if (err.status === 0) {
-    //         this._snackBar.snackBarMessage(err.statusText, false);
-    //       } else {
-    //         this._snackBar.snackBarMessage('Something went wrong', false);
-    //       }
-    //     } else {
-    //       this._snackBar.snackBarMessage('Something went wrong', false);
-    //     }
-    //   }
-    // });
+    this.API.getServicesFiltered(_obj).subscribe({
+      next: (res: any) => {
+        this.spinner = false;
+        this.dataSource = new MatTableDataSource<any>(res);
+        this.dataSource.paginator = this.paginator1;
+        this.dataSource.data.length = res.length;
+        this.dataObs$ = this.dataSource.connect();
+      },
+      error: (err) => {
+        this.dataSource = new MatTableDataSource<any>();
+        this.spinner = false;
+        this.helpers.returnError(err);
+      }
+    });
   }
 
   openDialog(obj: any): void {
@@ -287,7 +260,22 @@ export class RequestsCcpComponent implements OnInit {
     }
   }
 
-  checkFilters() {}
+  checkFilters() {
+    let { boxNumber,
+      invoiceNumber,
+      status,
+      operation,
+      customer,
+      start,
+      end } = this.options.value;
+
+    if (boxNumber === null && invoiceNumber === null && status === null && operation === null
+      && customer === null && start === null && end === null) {
+      this.getSr();
+    } else {
+      this.search(this.options.value);
+    }
+  }
 
   updateBoxNumber(elem: any) {
     const dialogConfig = new MatDialogConfig();
@@ -352,7 +340,6 @@ export class RequestsCcpComponent implements OnInit {
               serviceRequestId: serviceRequestId
             }
           }
-          //trigger document dialog
           this.documentDialog(service);
         }
       });
@@ -383,7 +370,7 @@ export class RequestsCcpComponent implements OnInit {
     const dialogRef = this.dialog.open(DocumentsComponent, dialogConfig);
     dialogRef.afterClosed().subscribe({
       next: (res) => {
-        // this.checkFilters();
+        this.checkFilters();
       },
     });
   }
@@ -461,25 +448,7 @@ export class RequestsCcpComponent implements OnInit {
               }
             },
             error: (err: any) => {
-              if (err.error.state !== undefined) {
-                const { state, message } = err.error;
-                if (state === 1) {
-                  this._snackBar.snackBarMessage(message, false);
-                } else if (state === 401) {
-                  this._snackBar.snackBarMessage(message, false);
-                  this.logOut.logOut();
-                } else {
-                  this._snackBar.snackBarMessage(
-                    'Algo ha salido mal, intente mas tarde.',
-                    false
-                  );
-                }
-              } else {
-                this._snackBar.snackBarMessage(
-                  'Algo ha salido mal, intente mas tarde.',
-                  false
-                );
-              }
+              this.helpers.returnError(err);
             },
           });
         }
@@ -515,22 +484,7 @@ export class RequestsCcpComponent implements OnInit {
       },
       error: (err: any) => {
         this.customersList = [];
-        // this.customerUserForm.controls['customerId'].setErrors({ 'incorrect': true });
-        if (err.status !== undefined) {
-          if (err.error.state !== undefined) {
-            if (err.error.state === 1) {
-              this._snackBar.snackBarMessage(err.error.message, false);
-            } else if (err.error.state === 401) {
-              this.logOut.logOut();
-            }
-          } else if (err.status === 0) {
-            this._snackBar.snackBarMessage(err.statusText, false);
-          } else {
-            this._snackBar.snackBarMessage('Something went wrong', false);
-          }
-        } else {
-          this._snackBar.snackBarMessage('Something went wrong', false);
-        }
+        this.helpers.returnError(err);
       },
     });
   }
@@ -571,21 +525,7 @@ export class RequestsCcpComponent implements OnInit {
       },
       error: (err) => {
         this.operationsList = [];
-        if (err.status !== undefined) {
-          if (err.error.state !== undefined) {
-            if (err.error.state === 1) {
-              this._snackBar.snackBarMessage(err.error.message, false);
-            } else if (err.error.state === 401) {
-              this.logOut.logOut();
-            }
-          } else if (err.status === 0) {
-            this._snackBar.snackBarMessage(err.statusText, false);
-          } else {
-            this._snackBar.snackBarMessage('Something went wrong', false);
-          }
-        } else {
-          this._snackBar.snackBarMessage('Something went wrong', false);
-        }
+        this.helpers.returnError(err);
       },
     });
   }
@@ -597,21 +537,7 @@ export class RequestsCcpComponent implements OnInit {
       },
       error: (err) => {
         this.statusList = [];
-        if (err.status !== undefined) {
-          if (err.error.state !== undefined) {
-            if (err.error.state === 1) {
-              this._snackBar.snackBarMessage(err.error.message, false);
-            } else if (err.error.state === 401) {
-              this.logOut.logOut();
-            }
-          } else if (err.status === 0) {
-            this._snackBar.snackBarMessage(err.statusText, false);
-          } else {
-            this._snackBar.snackBarMessage('Something went wrong', false);
-          }
-        } else {
-          this._snackBar.snackBarMessage('Something went wrong', false);
-        }
+        this.helpers.returnError(err);
       },
     });
   }

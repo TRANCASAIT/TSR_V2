@@ -5,9 +5,12 @@
 }
 
 .mdc-card{
-  display: contents;
+  display: contents !important;
 }
 
+.card-start{
+  display: contents;
+}
 
 .mat-cell-ope {
   background-color: #ff0000 !important;
@@ -93,8 +96,8 @@
   background-size: 25px 25px;
 }
 
-.container {
-  max-width: 1200px !important;
+.container-docs {
+  max-width: 100%;
 }
 
 .cont-style{

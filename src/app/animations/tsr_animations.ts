@@ -11,10 +11,10 @@ export const rightToLeftAnimation = [
       opacity: 1
     })),
     transition('void => *', [
-      animate('300ms ease-in-out')
+      animate('400ms ease-in-out')
     ]),
     transition('* => void', [
-      animate('300ms ease-in-out')
+      animate('400ms ease-in-out')
     ]),
   ])
 ];
@@ -31,10 +31,10 @@ export const leftToRightAnimation = [
       opacity: 1
     })),
     transition('void => *', [
-      animate('300ms ease-in-out')
+      animate('400ms ease-in-out')
     ]),
     transition('* => void', [
-      animate('300ms ease-in-out')
+      animate('400ms ease-in-out')
     ]),
   ])
 ];

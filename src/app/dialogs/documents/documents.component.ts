@@ -23,11 +23,13 @@ import { LogoutService } from '../../services/logout.service';
 import { FormControl, FormGroupDirective, NgForm, FormGroup, Validators } from '@angular/forms';
 import axios from 'axios';
 import { UpdateConsignmentNote, UpdateLayoutStatus } from '../../interfaces/serviceRequest';
+import { leftToRightAnimation } from '../../animations/tsr_animations';
 
 @Component({
   selector: 'app-documents',
   templateUrl: './documents.component.html',
   styleUrl: './documents.component.scss',
+  animations: [leftToRightAnimation]
 })
 export class DocumentsComponent implements OnInit {
   selectedFiles?: FileList;

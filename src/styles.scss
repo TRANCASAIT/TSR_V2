@@ -80,6 +80,7 @@ body {
 }
 
 .activo {
+  cursor: pointer;
   color: green
 }
 
@@ -88,9 +89,8 @@ body {
   color: red
 }
 
-mat-card {
-  margin-top: .5em;
-  margin-bottom: .5em;
+.card {
+  display: inline !important;
 }
 
 .spinner-container {
@@ -103,4 +103,63 @@ mat-card {
 .mt-field {
   width: 100%;
   margin: 5px;
+}
+
+.container {
+  width: 100%;
+  max-width: 100%;
+  margin-bottom: 5px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.201);
+}
+
+//table starts
+.selected-td {
+  cursor: pointer;
+}
+
+.table-responsive {
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.201);
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.mat-mdc-row .mat-mdc-cell {
+  border-bottom: 1px solid transparent;
+  border-top: 1px solid transparent;
+}
+
+.mat-mdc-row:hover .mat-mdc-cell {
+  border-color: currentColor;
+}
+
+.mat-mdc-table .mat-mdc-header-cell {
+  font-size: small !important;
+}
+
+td {
+  font-size: smaller !important;
+}
+//table ends
+
+
+
+.mt-field-search {
+  width: 100%;
+  height: 50%;
+  margin-top: 10px !important;
+}
+
+
+.custom-dialog-content {
+  /* Add your styles here */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 16px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

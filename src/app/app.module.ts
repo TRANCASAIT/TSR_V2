@@ -10,9 +10,9 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { CitiesComponent } from './components/cities/cities.component';
-import { ExternalUsersComponent } from './components/external-users/external-users.component';
-import { InternalUsersComponent } from './components/internal-users/internal-users.component';
-import { CustomersComponent } from './components/customers/customers.component';
+import { ExternalUsersComponent,CustomerStateDialog } from './components/external-users/external-users.component';
+import { InternalUsersComponent, UserStatusDialog } from './components/internal-users/internal-users.component';
+import { CustomersComponent, CompanyStateDialog } from './components/customers/customers.component';
 import { OperationTypesComponent } from './components/operation-types/operation-types.component';
 import { RequestsComponent } from './components/requests/requests.component';
 import { RequestReportsComponent } from './components/request-reports/request-reports.component';
@@ -38,13 +38,16 @@ import { NgxMatSelectSearchModule } from 'ngx-mat-select-search';
 import { DocumentsComponent, ConsignmentNoteDialog, AcceptRejectLayout, DocumentOptions } from './dialogs/documents/documents.component';
 import { ChartComponent } from './components/chart/chart.component';
 import { ChatComponent } from './components/chat/chat.component';
+import { LineChartComponent } from './components/line-chart/line-chart.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     CitiesComponent,
     ExternalUsersComponent,
+    CustomerStateDialog,
     InternalUsersComponent,
+    UserStatusDialog,
     CustomersComponent,
     OperationTypesComponent,
     RequestsComponent,
@@ -77,6 +80,8 @@ import { ChatComponent } from './components/chat/chat.component';
     ChatComponent,
     DocumentOptions,
     AcceptRejectLayout,
+    CompanyStateDialog,
+    LineChartComponent,
   ],
   imports: [
     FormsModule,
@@ -86,6 +91,7 @@ import { ChatComponent } from './components/chat/chat.component';
     AppRoutingModule,
     MaterialPropertiesModule,
     NgxMatSelectSearchModule,
+
   ],
   providers: [
     provideClientHydration(),

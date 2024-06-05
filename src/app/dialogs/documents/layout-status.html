@@ -1,9 +1,9 @@
-<div class="container">
+<div class="custom-dialog-content">
   <div mat-dialog-content>
       <p style="color: black;">Esta seguro de {{layoutLbl}} el layout?</p>
   </div>
   <div mat-dialog-actions align="center">
-      <button mat-button (click)="onYesClick()" cdkFocusInitial class="actionBtn">Sí</button>
-      <button mat-button class="closeBtn" (click)="onNoClick()">No</button>
+      <button mat-raised-button color="primary" (click)="onYesClick()" cdkFocusInitial class="actionBtn">Sí</button>
+      <button mat-raised-button color="warn" class="closeBtn" (click)="onNoClick()">No</button>
   </div>
 </div>

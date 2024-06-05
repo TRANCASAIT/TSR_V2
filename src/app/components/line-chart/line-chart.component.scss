@@ -1,0 +1,13 @@
+.chart-container {
+  width: 100%;
+  max-width: 800px;
+  height: 60%;
+  max-height: 600px;
+  margin: auto;
+}
+
+/* Ensure the canvas takes up the full container size */
+canvas {
+  width: 100% !important;
+  height: 100% !important;
+}

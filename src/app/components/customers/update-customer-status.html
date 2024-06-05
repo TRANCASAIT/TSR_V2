@@ -1,0 +1,9 @@
+<div class="custom-dialog-content">
+  <div mat-dialog-content>
+      <p style="color: black;">¿Desea deshabilitar / habilitar la compañía: <b>{{company}}</b>?</p>
+  </div>
+  <div mat-dialog-actions align="center">
+      <button mat-raised-button (click)="onYesClick()" cdkFocusInitial class="actionBtn" color="primary">Sí</button>
+      <button mat-raised-button mat-dialog-close color="warn" class="closeBtn">No</button>
+  </div>
+</div>
