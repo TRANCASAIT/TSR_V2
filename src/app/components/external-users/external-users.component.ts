@@ -49,9 +49,7 @@ export class ExternalUsersComponent implements OnInit{
 
   ngOnInit() {
     this.spinnerOk = true;
-    setTimeout(() => {
-      this.getData();
-    }, 2000);
+    this.getData();
     this.lvlUsr();
   }
 

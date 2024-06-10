@@ -120,7 +120,6 @@ export class RequestReportsComponent implements OnInit {
         this.dataSource.data.length = res.length;
         this.dataObs$ = this.dataSource.connect();
         this.showTable = false;
-        this.patchRangeDate();
         this.checkSearchBar();
       },
       error: (err) => {
@@ -275,6 +274,7 @@ export class RequestReportsComponent implements OnInit {
     this.options.controls['end'].setValue(null);
     this.inputSearch.nativeElement.value = '';
     this.getData();
+    this.patchRangeDate();
   }
 
   async getOperations() {

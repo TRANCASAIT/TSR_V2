@@ -1,4 +1,3 @@
-import { MyErrorStateMatcher } from './../../components/requests-ccp/requests-ccp.component';
 import { Component, Inject, OnInit } from '@angular/core';
 import { FormGroup, FormControl, Validators } from '@angular/forms';
 import {  ThemePalette } from '@angular/material/core';
@@ -12,6 +11,7 @@ import { SnackbarService } from '../../services/snackbar.service';
 import { ApiService } from '../../services/api.service';
 import { HelpersService } from '../../services/helpers.service';
 import { topToBottomAnimation } from '../../animations/tsr_animations';
+import { MyErrorStateMatcher } from '../../shared/errorMatcher';
 
 @Component({
   selector: 'app-customer',

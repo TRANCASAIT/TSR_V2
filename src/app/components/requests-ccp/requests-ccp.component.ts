@@ -1,6 +1,18 @@
-import { ChangeDetectorRef, Component, ElementRef, Inject, OnInit, ViewChild } from '@angular/core';
+import {
+  AfterViewInit,
+  ApplicationRef,
+  Component,
+  ElementRef,
+  Inject,
+  OnDestroy,
+  OnInit,
+  PLATFORM_ID,
+  TransferState,
+  ViewChild,
+  makeStateKey,
+} from '@angular/core';
 import { MatPaginator } from '@angular/material/paginator';
-import { Observable, ReplaySubject, Subject, take, takeUntil } from 'rxjs';
+import { Observable, ReplaySubject, Subject, Subscription, take, takeUntil } from 'rxjs';
 import { ApiService } from '../../services/api.service';
 import {
   MAT_DIALOG_DATA,
@@ -13,8 +25,6 @@ import { SnackbarService } from '../../services/snackbar.service';
 import {
   FormGroup,
   FormControl,
-  FormGroupDirective,
-  NgForm,
   Validators,
 } from '@angular/forms';
 import { MatSelect } from '@angular/material/select';
@@ -32,24 +42,23 @@ import {
 } from '../../interfaces/serviceRequest';
 import { LogoutService } from '../../services/logout.service';
 import { JwtService } from '../../services/jwt.service';
-import { ErrorStateMatcher, ThemePalette } from '@angular/material/core';
-import { HttpClient } from '@angular/common/http';
-import { Router } from '@angular/router';
+import { ThemePalette } from '@angular/material/core';
 import { ProgressSpinnerMode } from '@angular/material/progress-spinner';
-import { SignalRService } from '../../services/signal-r.service';
-import * as signalR from '@microsoft/signalr';
-import {  bottomToTopAnimation, topToBottomAnimation } from '../../animations/tsr_animations';
+import {
+  bottomToTopAnimation,
+} from '../../animations/tsr_animations';
 import { HelpersService } from '../../services/helpers.service';
-
+import { MyErrorStateMatcher } from '../../shared/errorMatcher';
+import { NotificationsService } from '../../services/notifications.service';
+const DATA_KEY = makeStateKey<any>('data');
 
 @Component({
   selector: 'app-requests-ccp',
   templateUrl: './requests-ccp.component.html',
   styleUrl: './requests-ccp.component.scss',
-  animations: [ bottomToTopAnimation]
+  animations: [bottomToTopAnimation],
 })
-export class RequestsCcpComponent implements OnInit {
-  //table options
+export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
   dataSource!: MatTableDataSource<any>;
   displayedColumns: string[] = [
     'invoice',
@@ -73,7 +82,7 @@ export class RequestsCcpComponent implements OnInit {
 
   public filteredCompanies: ReplaySubject<any[]> = new ReplaySubject(1);
 
-  protected _onDestroy = new Subject();
+  private _onDestroy = new Subject<void>();
 
   @ViewChild('singleSelect', { static: true }) singleSelect!: MatSelect;
 
@@ -81,6 +90,9 @@ export class RequestsCcpComponent implements OnInit {
 
   dataObs$!: Observable<any>;
   @ViewChild('inputSearch', { static: false }) inputSearch!: ElementRef;
+
+  private dataSubscription!: Subscription;
+
 
   options = new FormGroup({
     boxNumber: new FormControl(null),
@@ -96,13 +108,18 @@ export class RequestsCcpComponent implements OnInit {
   operationsList: [] = []!;
   customersList: any;
 
-  spinner: Boolean = false;
+  spinner: Boolean = true;
 
   isCustomer = false;
   customerType: string = '';
   filterValue: string = '';
   showTable: boolean = true;
   filterEvent!: Event;
+  timeoutId: number | null = null;
+  // private subscription!: Subscription;
+  private recordUpdatedSubscription!: Subscription;
+  private recordRemovedSubscription!: Subscription;
+  private eventHandlers: Array<{ event: string, handler: (...args: any[]) => void }> = [];
 
   constructor(
     private API: ApiService,
@@ -110,36 +127,65 @@ export class RequestsCcpComponent implements OnInit {
     public dialog: MatDialog,
     public logOut: LogoutService,
     private jwt: JwtService,
-    private chatService: SignalRService,
-    private cdr: ChangeDetectorRef,
     private helpers: HelpersService,
-  ) {}
+    private recordService: NotificationsService,
+    private appRef: ApplicationRef,
+    private transferState: TransferState,
+    @Inject(PLATFORM_ID) private platformId: Object,
+  ) {
 
-  async ngOnInit() {
-    this.chatService.startConnection('https://localhost:7262/' + 'ChatHub', signalR.HttpTransportType.WebSockets);
-
-    this.isCustomer = this.jwt.getIsCustomer() === 'False' ? false : true;
-    await this.getOperations();
-    await this.getCustomers();
-    await this.getStatus();
-    this.spinner = true;
-    setTimeout(() => {
-      this.getSr();
-    }, 2000);
   }
 
-  async getSr() {
-    await this.API.getServiceRequest().subscribe({
-      next: (res: any) => {
-        console.log(res);
+   ngOnInit() {
 
+
+    this.checkUser();
+    this.patchDateRanges();
+
+    this.recordService.startConnection();
+
+    this.recordService.getNewRecordObservable()
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe(() => {
+        this.getSr();
+      });
+
+    this.recordService.getUpdatedRecordObservable()
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe(() => {
+        this.getSr();
+      });
+
+    this.recordService.getRemovedRecordObservable()
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe(() => {
+        this.getSr();
+      });
+
+  }
+
+  ngAfterViewInit(): void {
+    this.getSr();
+    this.getDrops();
+  }
+
+  checkUser(){
+    this.isCustomer = this.jwt.getIsCustomer() === 'False' ? false : true;
+  }
+
+
+   getSr() {
+    this.dataSubscription =  this.API.getServiceRequest()
+    .pipe(takeUntil(this._onDestroy))
+    .subscribe({
+      next: (res: any) => {
         this.spinner = false;
         this.dataSource = new MatTableDataSource<any>(res);
         this.dataSource.paginator = this.paginator1;
         this.dataSource.data.length = res.length;
         this.dataObs$ = this.dataSource.connect();
-        this.checkSearchBar();
         this.showTable = false;
+        this.checkSearchBar();
       },
       error: (err: any) => {
         this.spinner = false;
@@ -158,6 +204,7 @@ export class RequestsCcpComponent implements OnInit {
     this.options.controls['end'].setValue(null);
     this.inputSearch.nativeElement.value = '';
     this.getSr();
+    this.patchDateRanges();
   }
 
   convert(str: any) {
@@ -215,7 +262,7 @@ export class RequestsCcpComponent implements OnInit {
       Priority: priority,
     };
 
-    this.API.getServicesFiltered(_obj).subscribe({
+    this.API.getServicesFiltered(_obj).pipe(takeUntil(this._onDestroy)).subscribe({
       next: (res: any) => {
         this.spinner = false;
         this.dataSource = new MatTableDataSource<any>(res);
@@ -227,7 +274,7 @@ export class RequestsCcpComponent implements OnInit {
         this.dataSource = new MatTableDataSource<any>();
         this.spinner = false;
         this.helpers.returnError(err);
-      }
+      },
     });
   }
 
@@ -239,13 +286,12 @@ export class RequestsCcpComponent implements OnInit {
 
     dialogConfig.panelClass = '';
     const dialogRef = this.dialog.open(RequestComponent, dialogConfig);
-    dialogRef.afterClosed().subscribe({
+    dialogRef.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe({
       next: (res: any) => {
-        this.getSr();
+        // this.getSr();
       },
     });
   }
-
 
   applyFilter(event: Event) {
     const filterValue = (event.target as HTMLInputElement).value;
@@ -253,7 +299,7 @@ export class RequestsCcpComponent implements OnInit {
     this.dataSource.filter = filterValue.trim().toLowerCase();
   }
 
-  checkSearchBar(){
+  checkSearchBar() {
     const filterValue = this.inputSearch.nativeElement.value;
     if (filterValue.trim()) {
       this.dataSource.filter = filterValue.trim().toLowerCase();
@@ -261,19 +307,22 @@ export class RequestsCcpComponent implements OnInit {
   }
 
   checkFilters() {
-    let { boxNumber,
-      invoiceNumber,
-      status,
-      operation,
-      customer,
-      start,
-      end } = this.options.value;
+    let { boxNumber, invoiceNumber, status, operation, customer, start, end } =
+      this.options.value;
 
-    if (boxNumber === null && invoiceNumber === null && status === null && operation === null
-      && customer === null && start === null && end === null) {
+    if (
+      boxNumber === null &&
+      invoiceNumber === null &&
+      status === null &&
+      operation === null &&
+      customer === null &&
+      start === null &&
+      end === null
+    ) {
       this.getSr();
     } else {
       this.search(this.options.value);
+      this.checkSearchBar();
     }
   }
 
@@ -289,7 +338,7 @@ export class RequestsCcpComponent implements OnInit {
     dialogConfig.data = obj;
     if (elem.status === 1 && this.isCustomer === true) {
       const dialogConfirm = this.dialog.open(UpdateBoxDialog, dialogConfig);
-      dialogConfirm.afterClosed().subscribe((confirm) => {
+      dialogConfirm.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe((confirm) => {
         this.checkFilters();
       });
     }
@@ -301,13 +350,13 @@ export class RequestsCcpComponent implements OnInit {
 
     let obj: UpdateReference = {
       ServiceRequestId: serviceRequestId,
-      Reference: reference
-    }
+      Reference: reference,
+    };
     dialogConfig.data = obj;
 
     if (status === 1 && this.isCustomer === true) {
       const dialogConfirm = this.dialog.open(UpdateReferenceAdm, dialogConfig);
-      dialogConfirm.afterClosed().subscribe((confirm) => {
+      dialogConfirm.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe((confirm) => {
         this.checkFilters();
       });
     }
@@ -320,55 +369,68 @@ export class RequestsCcpComponent implements OnInit {
 
     if (status === 1 && this.isCustomer === true) {
       const dialogConfirm = this.dialog.open(UpdateOperationAdm, dialogConfig);
-      dialogConfirm.afterClosed().subscribe((confirm) => {
+      dialogConfirm.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe((confirm) => {
         this.checkFilters();
       });
     }
   }
 
   updateUuid(elem: any) {
-
     if (elem.status < 5 && this.isCustomer === false) {
       const dialogConfig = new MatDialogConfig();
       dialogConfig.data = elem;
       const dialogConfirm = this.dialog.open(UuidDialog, dialogConfig);
-      dialogConfirm.afterClosed().subscribe((confirm) => {
-        if(confirm.data !== undefined){
-          const { serviceRequestId } = elem;
-          let service = {
-            service: {
-              serviceRequestId: serviceRequestId
-            }
+      dialogConfirm.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe({
+        next: (res: any) => {
+          if (res.data !== undefined && res.data !== null) {
+              const { serviceRequestId } = elem;
+              let service = {
+                service: {
+                  serviceRequestId: serviceRequestId,
+                },
+              };
+              this.documentDialog(service);
           }
-          this.documentDialog(service);
-        }
+        },
+        error: (err) => {
+          this.helpers.returnError(err);
+        },
       });
-    }else{
-      this._snackBar.snackBarMessage('Es necesario completar los documentos / información previa a  este paso.', false);
+    } else {
+      this._snackBar.snackBarMessage(
+        'Es necesario completar los documentos / información previa a  este paso.',
+        false
+      );
     }
   }
 
   updateTMW(elem: any) {
     const dialogConfig = new MatDialogConfig();
     dialogConfig.data = elem;
-    if ((elem.status === 2 || elem.status === 3 || elem.status === 4) &&
-      this.isCustomer === false) {
+    if (
+      (elem.status === 2 || elem.status === 3 || elem.status === 4) &&
+      this.isCustomer === false
+    ) {
       const dialogConfirm = this.dialog.open(UpdateTmwAdm, dialogConfig);
-      dialogConfirm.afterClosed().subscribe(confirm => {
-        this.checkFilters();
+      dialogConfirm.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe({
+        next: (res: any) => {
+          this.checkFilters();
+        },
+        error: (err) => {
+          this.helpers.returnError(err);
+        },
       });
     }
   }
 
   documentDialog(obj: any) {
-    console.log(obj);
     const dialogConfig = new MatDialogConfig();
     dialogConfig.width = '92%';
     dialogConfig.maxWidth = '100vw';
     dialogConfig.data = obj;
     dialogConfig.panelClass = '';
     const dialogRef = this.dialog.open(DocumentsComponent, dialogConfig);
-    dialogRef.afterClosed().subscribe({
+    dialogRef.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe({
       next: (res) => {
         this.checkFilters();
       },
@@ -381,16 +443,17 @@ export class RequestsCcpComponent implements OnInit {
 
     const dialogConfirm = this.dialog.open(ReturnStatusDialog, dialogConfig);
 
-    dialogConfirm.afterClosed().subscribe((confirm) => {
+    dialogConfirm.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe((confirm) => {
       if (confirm !== undefined) {
         if (confirm.data) {
           let obj: ReturnToState = {
             ServiceRequestId: elem.serviceRequestId,
           };
 
-          this.API.returnToState(obj).subscribe({
+          this.API.returnToState(obj).pipe(takeUntil(this._onDestroy)).subscribe({
             next: (res: any) => {
               if (res.state === 0) {
+                this.spinner = false;
                 this._snackBar.snackBarMessage(res.message, true);
                 this.checkFilters();
               }
@@ -398,6 +461,7 @@ export class RequestsCcpComponent implements OnInit {
             error: (err: any) => {
               if (err.error.state !== undefined) {
                 const { state, message } = err.error;
+                this.spinner = false;
                 if (state === 1) {
                   this._snackBar.snackBarMessage(message, false);
                 } else if (state === 401) {
@@ -432,15 +496,15 @@ export class RequestsCcpComponent implements OnInit {
         dialogConfig
       );
 
-      dialogConfirm.afterClosed().subscribe((confirm) => {
-        if (confirm.data !== undefined) {
+      dialogConfirm.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe((confirm) => {
+        if (confirm.data !== undefined && confirm.data !== null) {
           const { serviceRequestId } = elem;
 
           const obj: RemoveService = {
             ServiceRequestId: serviceRequestId,
           };
 
-          this.API.removeRequest(obj).subscribe({
+          this.API.removeRequest(obj).pipe(takeUntil(this._onDestroy)).subscribe({
             next: (res: any) => {
               if (res.state === 0) {
                 this._snackBar.snackBarMessage(res.message, true);
@@ -457,7 +521,7 @@ export class RequestsCcpComponent implements OnInit {
   }
 
   async getCustomers() {
-    await this.API.getCompaniesForCustomers().subscribe({
+    await this.API.getCompaniesForCustomers().pipe(takeUntil(this._onDestroy)).subscribe({
       next: (res: any) => {
         if (this.isCustomer === true) {
           this.customersList = res;
@@ -519,7 +583,7 @@ export class RequestsCcpComponent implements OnInit {
   }
 
   async getOperations() {
-    await this.API.getOperationTypes().subscribe({
+    await this.API.getOperationTypes().pipe(takeUntil(this._onDestroy)).subscribe({
       next: (res: any) => {
         this.operationsList = res;
       },
@@ -531,7 +595,7 @@ export class RequestsCcpComponent implements OnInit {
   }
 
   async getStatus() {
-    await this.API.getStatus().subscribe({
+    await this.API.getStatus().pipe(takeUntil(this._onDestroy)).subscribe({
       next: (res: any) => {
         this.statusList = res;
       },
@@ -541,8 +605,37 @@ export class RequestsCcpComponent implements OnInit {
       },
     });
   }
-}
 
+  patchDateRanges() {
+    let start = new Date(this.jwt.getStartDate());
+    let end = new Date(this.jwt.getEndDate());
+    this.options.patchValue({
+      start: start,
+      end: end,
+    });
+  }
+
+  getDrops(){
+    this.getOperations();
+    this.getCustomers();
+    this.getStatus();
+  }
+
+
+  ngOnDestroy() {
+
+    // if (this.subscription) {
+    //   this.subscription.unsubscribe();
+    // }
+    // this.recordUpdatedSubscription.unsubscribe();
+    // this.recordRemovedSubscription.unsubscribe();
+    this._onDestroy.next();
+    this._onDestroy.complete();
+    this.dataSubscription.unsubscribe();
+    this.recordService.stopConnection();
+  }
+
+}
 
 @Component({
   selector: 'uuid-adm',
@@ -563,23 +656,21 @@ export class UuidDialog implements OnInit {
   //dynamic titles
   btnTxt: string = '';
   errorMsgFrm: string = '';
-
+  private _onDestroy = new Subject<void>();
   constructor(
     public dialogConfirm: MatDialogRef<UuidDialog>,
     @Inject(MAT_DIALOG_DATA) public data: any,
     private API: ApiService,
     private logOut: LogoutService,
-    private _snackBar: SnackbarService,
-
-  ) { }
+    private _snackBar: SnackbarService
+  ) {}
 
   ngOnInit(): void {
-
     this.changeText();
     const { serviceRequestId, uuid } = this.data;
     this.uuidForm.patchValue({
       serviceRequestId: serviceRequestId,
-      uuid: uuid
+      uuid: uuid,
     });
   }
 
@@ -592,33 +683,35 @@ export class UuidDialog implements OnInit {
     let _obj: UpdateUuid = {
       ServiceRequestId: serviceRequestId,
       Uuid: uuid,
-    }
+    };
 
-    this.API.updateUuid(_obj).subscribe({
-      next: (res:any) => {
+    this.API.updateUuid(_obj).pipe(takeUntil(this._onDestroy)).subscribe({
+      next: (res: any) => {
         this.spinnerOk = false;
-        if(res.state !== undefined){
+        if (res.state !== undefined) {
           const { state, message } = res;
-          if(state === 0) {
+          if (state === 0) {
             this._snackBar.snackBarMessage(message, true);
             this.dialogConfirm.close({ data: true });
           }
         }
       },
       error: (err) => {
-        if(err.error !== undefined){
+        if (err.error !== undefined) {
           this.spinnerOk = false;
           const { state, message } = err.error;
-          if(state === 1){
+          if (state === 1) {
             this._snackBar.snackBarMessage(message, false);
-          }
-          else if(state === 401){
+          } else if (state === 401) {
             this.logOut.logOut();
           }
-        }else{
-          this._snackBar.snackBarMessage('Algo ha salido mal, intente mas tarde.', false);
+        } else {
+          this._snackBar.snackBarMessage(
+            'Algo ha salido mal, intente mas tarde.',
+            false
+          );
         }
-      }
+      },
     });
   }
 
@@ -627,8 +720,6 @@ export class UuidDialog implements OnInit {
     this.btnTxt = environment.messages.btnUpdate;
   }
 }
-
-
 
 @Component({
   selector: 'return-status',
@@ -654,20 +745,6 @@ export class ReturnStatusDialog implements OnInit {
 
   closeModal() {
     this.dialogConfirm.close();
-  }
-}
-
-export class MyErrorStateMatcher implements ErrorStateMatcher {
-  isErrorState(
-    control: FormControl | null,
-    form: FormGroupDirective | NgForm | null
-  ): boolean {
-    const isSubmitted = form && form.submitted;
-    return !!(
-      control &&
-      control.invalid &&
-      (control.dirty || control.touched || isSubmitted)
-    );
   }
 }
 
@@ -712,7 +789,7 @@ export class UpdateBoxDialog implements OnInit {
   });
 
   matcher = new MyErrorStateMatcher();
-
+  private _onDestroy = new Subject<void>();
   //dynamic titles
   btnTxt: string = '';
   errorMsgFrm: string = '';
@@ -721,7 +798,8 @@ export class UpdateBoxDialog implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: any,
     public dialogConfirm: MatDialogRef<UpdateBoxDialog>,
     private API: ApiService,
-    private logOutSer: LogoutService
+    private logOutSer: LogoutService,
+    private helpers: HelpersService
   ) {}
 
   ngOnInit(): void {
@@ -742,7 +820,7 @@ export class UpdateBoxDialog implements OnInit {
       BoxNumber: String(boxNumber),
     };
 
-    this.API.updateBoxNumber(_obj).subscribe({
+    this.API.updateBoxNumber(_obj).pipe(takeUntil(this._onDestroy)).subscribe({
       next: (res: any) => {
         this.spinner = false;
         if (res.state !== undefined) {
@@ -753,20 +831,7 @@ export class UpdateBoxDialog implements OnInit {
       },
       error: (err) => {
         this.spinner = false;
-        if (err.error) {
-          const { message, state } = err;
-          if (state === 1) {
-            this._snackBar.snackBarMessage(message, false);
-          } else if (state === 401) {
-            this._snackBar.snackBarMessage(message, false);
-            this.logOutSer.logOut();
-          }
-        } else {
-          this._snackBar.snackBarMessage(
-            'Algo ha salido mal, intente mas tarde.',
-            false
-          );
-        }
+        this.helpers.returnError(err);
       },
     });
   }
@@ -797,13 +862,12 @@ export class UpdateReferenceAdm implements OnInit {
   btnTxt: string = '';
   errorMsgFrm: string = '';
   spinner: Boolean = false;
-
+  private _onDestroy = new Subject<void>();
   constructor(
     public dialogConfirm: MatDialogRef<UpdateReferenceAdm>,
     @Inject(MAT_DIALOG_DATA) public data: any,
-    private http: HttpClient,
+    private helpers: HelpersService,
     private _snackBar: SnackbarService,
-    private router: Router,
     private API: ApiService
   ) {}
 
@@ -828,7 +892,7 @@ export class UpdateReferenceAdm implements OnInit {
       Reference: reference,
     };
 
-    this.API.updateReference(_obj).subscribe({
+    this.API.updateReference(_obj).pipe(takeUntil(this._onDestroy)).subscribe({
       next: (res: any) => {
         this.spinner = false;
         if (res.state !== undefined) {
@@ -839,37 +903,9 @@ export class UpdateReferenceAdm implements OnInit {
       },
       error: (err: any) => {
         this.spinner = false;
-        if (err.error !== undefined) {
-          const { state, message } = err.error;
-        } else {
-          this._snackBar.snackBarMessage('Algo ha salido mal, intente mas tarde.', false);
-        }
+        this.helpers.returnError(err);
       },
     });
-
-    // this.http.post<any>(`${environment.API_URL}ServiceRequests/UpdateReference`, obj).subscribe({
-    //   next: (res) => {
-    //     this.spinnerOk = false;
-    //     if (res.state === 0) {
-    //       this._snackBar.snackBarMessage(res.message, true);
-    //       this.dialogConfirm.close({ data: true });
-    //     }
-    //   },
-    //   error: (err) => {
-    //     this.spinnerOk = false;
-    //     if (err.error !== undefined) {
-    //       if (err.error.state !== undefined) {
-    //         if(err.error.state === 1){
-    //         this._snackBar.snackBarMessage(err.error.message, false);
-    //         }else if(err.error.state === 401){
-    //           this.router.navigateByUrl('/login');
-    //         }
-    //       } else {
-    //         this._snackBar.snackBarMessage('Something went wrong', false);
-    //       }
-    //     }
-    //   }
-    // });
   }
 
   changeText() {
@@ -894,18 +930,16 @@ export class UpdateOperationAdm implements OnInit {
   value = 50;
   color: ThemePalette = 'primary';
   mode: ProgressSpinnerMode = 'indeterminate';
-
-  //dynamic titles
+  private _onDestroy = new Subject<void>();
   btnTxt: string = '';
   errorMsgFrm: string = '';
   operationsList: any;
   constructor(
     public dialogConfirm: MatDialogRef<UpdateOperationAdm>,
     @Inject(MAT_DIALOG_DATA) public data: any,
-    private http: HttpClient,
+    private helpers: HelpersService,
     private _snackBar: SnackbarService,
     private API: ApiService,
-    private router: Router,
     private logOut: LogoutService
   ) {}
 
@@ -920,27 +954,13 @@ export class UpdateOperationAdm implements OnInit {
   }
 
   async getOperations() {
-    await this.API.getOperationTypes().subscribe({
+    await this.API.getOperationTypes().pipe(takeUntil(this._onDestroy)).subscribe({
       next: (res) => {
         this.operationsList = res;
       },
       error: (err) => {
         this.operationsList = [];
-        if (err.status !== undefined) {
-          if (err.error.state !== undefined) {
-            if (err.error.state === 1) {
-              this._snackBar.snackBarMessage(err.error.message, false);
-            } else if (err.error.state === 401) {
-              this.router.navigateByUrl('/login');
-            }
-          } else if (err.status === 0) {
-            this._snackBar.snackBarMessage(err.statusText, false);
-          } else {
-            this._snackBar.snackBarMessage('Something went wrong', false);
-          }
-        } else {
-          this._snackBar.snackBarMessage('Something went wrong', false);
-        }
+        this.helpers.returnError(err);
       },
     });
   }
@@ -951,16 +971,16 @@ export class UpdateOperationAdm implements OnInit {
 
     let _obj: UpdateOperation = {
       ServiceRequestId: serviceRequestId,
-      OperationTypeId: operationTypeId
-    }
+      OperationTypeId: operationTypeId,
+    };
     this.spinnerOk = true;
 
-    this.API.updateOperationType(_obj).subscribe({
-      next: (res : any) => {
+    this.API.updateOperationType(_obj).pipe(takeUntil(this._onDestroy)).subscribe({
+      next: (res: any) => {
         this.spinnerOk = false;
-        if(res.state !== undefined){
+        if (res.state !== undefined) {
           const { state, message } = res;
-          if(state === 0){
+          if (state === 0) {
             this._snackBar.snackBarMessage(message, true);
           }
 
@@ -969,24 +989,10 @@ export class UpdateOperationAdm implements OnInit {
       },
       error: (err) => {
         this.spinnerOk = false;
-        if(err.error !== undefined) {
-          const { state, message} = err.error;
-          if(state === 1){
-            this._snackBar.snackBarMessage(message,false);
-          }
-          else if(state === 401){
-            this._snackBar.snackBarMessage(message,false);
-            this.logOut.logOut();
-          }
-
-        }else{
-          this._snackBar.snackBarMessage('Algo ha salido mal, intente mas tarde.',false);
-        }
-      }
+        this.helpers.returnError(err);
+      },
     });
-
   }
-
   changeText() {
     this.errorMsgFrm = environment.messages.errorMsgFrm;
     this.btnTxt = environment.messages.btnUpdate;
@@ -995,7 +1001,7 @@ export class UpdateOperationAdm implements OnInit {
 
 @Component({
   selector: 'update-tmw-adm',
-  templateUrl: 'update-tmw-adm.html'
+  templateUrl: 'update-tmw-adm.html',
 })
 export class UpdateTmwAdm implements OnInit {
   statusObj: boolean = false;
@@ -1009,7 +1015,7 @@ export class UpdateTmwAdm implements OnInit {
   value = 50;
   color: ThemePalette = 'primary';
   mode: ProgressSpinnerMode = 'indeterminate';
-
+  private _onDestroy = new Subject<void>();
   //dynamic titles
   btnTxt: string = '';
   errorMsgFrm: string = '';
@@ -1019,8 +1025,8 @@ export class UpdateTmwAdm implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: any,
     private _snackBar: SnackbarService,
     private API: ApiService,
-    private logOut: LogoutService
-  ) { }
+    private helpers: HelpersService
+  ) {}
 
   async ngOnInit() {
     this.errorMsgFrm = 'Este campo es requerido';
@@ -1028,7 +1034,7 @@ export class UpdateTmwAdm implements OnInit {
     const { serviceRequestId, tmw } = this.data;
     this.tmwForm.patchValue({
       serviceRequestId: serviceRequestId,
-      tmwOrder: tmw
+      tmwOrder: tmw,
     });
   }
 
@@ -1040,33 +1046,22 @@ export class UpdateTmwAdm implements OnInit {
     let _obj: UpdateTmw = {
       ServiceRequestId: serviceRequestId,
       TmwOrder: tmwOrder,
-    }
+    };
 
     this.spinnerOk = true;
-    this.API.updateTmw(_obj).subscribe({
-      next: (res: any)=> {
+    this.API.updateTmw(_obj).pipe(takeUntil(this._onDestroy)).subscribe({
+      next: (res: any) => {
         this.spinnerOk = false;
-        if(res.state !== undefined){
+        if (res.state !== undefined) {
           const { state, message } = res;
           this._snackBar.snackBarMessage(message, true);
+          this.dialogConfirm.close();
         }
       },
       error: (err) => {
         this.spinnerOk = false;
-        if(err.error !== undefined){
-          const { state, message } = err.error;
-          if(state === 1){
-            this._snackBar.snackBarMessage(message, false);
-          }
-          else if(state === 401){
-            this._snackBar.snackBarMessage(message, false);
-            this.logOut.logOut();
-          }
-        }else{
-          this._snackBar.snackBarMessage('Algo ha salido mal, intente mas tarde.',false);
-        }
-      }
+        this.helpers.returnError(err);
+      },
     });
   }
-
 }

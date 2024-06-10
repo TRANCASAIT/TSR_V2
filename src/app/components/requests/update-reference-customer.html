@@ -1,16 +1,16 @@
-<div class="custom-dialog-content">
+<div class="custom-content-dialog">
   <h1 class="text-center" mat-dialog-title>
-      TMW
+      Referencia
   </h1>
   <div mat-dialog-content>
-      <form [formGroup]="tmwForm">
+      <form [formGroup]="referenceForm">
           <div class="text-center">
               <input matInput formControlName="serviceRequestId" [errorStateMatcher]="matcher" hidden>
               <div class="row">
                   <div class="col-sm-12">
                       <mat-form-field appearance="fill" class="mt-field">
-                          <mat-label>TMW</mat-label>
-                          <input matInput placeholder="TMW" formControlName="tmwOrder"
+                          <mat-label>Referencia</mat-label>
+                          <input matInput placeholder="Referencia" formControlName="reference"
                               [errorStateMatcher]="matcher">
                           <mat-error> {{errorMsgFrm}}</mat-error>
                       </mat-form-field>
@@ -19,7 +19,7 @@
               </div>
               <div class="row">
                   <div class="col-sm-12">
-                      <div *ngIf="spinnerOk" id="logSpinner" class="text-center d-flex justify-content-end">
+                      <div *ngIf="spinner" id="logSpinner" class="text-center d-flex justify-content-end">
                           <mat-progress-spinner class="text-right" color="warn" [mode]="mode" [value]="value"
                               [diameter]="40">
                           </mat-progress-spinner>
@@ -31,8 +31,8 @@
                       <button mat-raised-button mat-dialog-close color="primary">Cancelar</button>
                   </div>
                   <div class="col-sm-6 top" [style]="'margin-top:.2em'">
-                      <button [disabled]="tmwForm.invalid" color="warn" mat-raised-button
-                          (click)="updateTmw(tmwForm.value)">{{btnTxt}}</button>
+                      <button [disabled]="referenceForm.invalid" color="warn" mat-raised-button
+                          (click)="updateReference(referenceForm.value)">{{btnTxt}}</button>
                   </div>
               </div>
           </div>

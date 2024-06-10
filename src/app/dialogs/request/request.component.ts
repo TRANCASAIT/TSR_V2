@@ -1,45 +1,21 @@
-import { ChangeDetectorRef, Component, OnInit, ViewEncapsulation } from '@angular/core';
-import {
-  FormControl,
-  FormGroup,
-  FormGroupDirective,
-  NgForm,
-  Validators,
-} from '@angular/forms';
-import { ErrorStateMatcher, ThemePalette } from '@angular/material/core';
+import { Component, OnInit } from '@angular/core';
+import { FormControl, FormGroup, Validators } from '@angular/forms';
+import { ThemePalette } from '@angular/material/core';
 import { MatDialogRef, MatDialog } from '@angular/material/dialog';
 import { ProgressSpinnerMode } from '@angular/material/progress-spinner';
-import { HttpClient } from '@microsoft/signalr';
-import { Router } from 'express';
-import { environment } from '../../../environments/environment.development';
 import { SnackbarService } from '../../services/snackbar.service';
-import { LocalstorageService } from '../../services/localstorage.service';
 import { ApiService } from '../../services/api.service';
 import { JwtService } from '../../services/jwt.service';
 import { CreateRequest } from '../../interfaces/serviceRequest';
-import { LogoutService } from '../../services/logout.service';
-import { leftToRightAnimation, rightToLeftAnimation } from '../../animations/tsr_animations';
-
-export class MyErrorStateMatcher implements ErrorStateMatcher {
-  isErrorState(
-    control: FormControl | null,
-    form: FormGroupDirective | NgForm | null
-  ): boolean {
-    const isSubmitted = form && form.submitted;
-    return !!(
-      control &&
-      control.invalid &&
-      (control.dirty || control.touched || isSubmitted)
-    );
-  }
-}
+import { leftToRightAnimation } from '../../animations/tsr_animations';
+import { HelpersService } from '../../services/helpers.service';
+import { MyErrorStateMatcher } from '../../shared/errorMatcher';
 
 @Component({
   selector: 'app-request',
   templateUrl: './request.component.html',
   styleUrl: './request.component.scss',
-  animations: [leftToRightAnimation]
-
+  animations: [leftToRightAnimation],
 })
 export class RequestComponent implements OnInit {
   spinnerOk: Boolean = false;
@@ -63,7 +39,6 @@ export class RequestComponent implements OnInit {
     return this.requestForm.controls;
   }
 
-  //dynamic titles
   btnTxt: string = '';
   errorMsgFrm: string = '';
 
@@ -73,7 +48,7 @@ export class RequestComponent implements OnInit {
     private API: ApiService,
     private _snackBar: SnackbarService,
     private jwtts: JwtService,
-    private logOut: LogoutService
+    private helpers: HelpersService
   ) {}
 
   async ngOnInit() {
@@ -100,19 +75,12 @@ export class RequestComponent implements OnInit {
         next: (res: any) => {
           if (res.state !== undefined) {
             const { state, message } = res;
-
             this._snackBar.snackBarMessage(message, true);
+            this.close();
           }
         },
         error: (err) => {
-          if (err.error !== undefined) {
-            const { state, message } = err.error;
-            state === 1
-              ? this._snackBar.snackBarMessage(message, false)
-              : state === 401
-              ? this.logOut.logOut()
-              : null;
-          }
+          this.helpers.returnError(err);
         },
       });
     }
@@ -129,22 +97,7 @@ export class RequestComponent implements OnInit {
       },
       error: (err) => {
         this.operationsList = [];
-        if (err.error !== undefined) {
-          const { state, message } = err.error;
-          state === 1
-            ? this._snackBar.snackBarMessage(message, false)
-            : state === 401
-            ? this.logOut.logOut()
-            : this._snackBar.snackBarMessage(
-                'Algo ha salido mal, intente mas tarde.',
-                false
-              );
-        } else {
-          this._snackBar.snackBarMessage(
-            'Algo ha salido mal, intente mas tarde.',
-            false
-          );
-        }
+        this.helpers.returnError(err);
       },
     });
   }
@@ -156,22 +109,7 @@ export class RequestComponent implements OnInit {
       },
       error: (err) => {
         this.stopsList = [];
-        if (err.error !== undefined) {
-          const { state, message } = err.error;
-          state === 1
-            ? this._snackBar.snackBarMessage(message, false)
-            : state === 401
-            ? this.logOut.logOut()
-            : this._snackBar.snackBarMessage(
-                'Algo ha salido mal, intente mas tarde.',
-                false
-              );
-        } else {
-          this._snackBar.snackBarMessage(
-            'Algo ha salido mal, intente mas tarde.',
-            false
-          );
-        }
+        this.helpers.returnError(err);
       },
     });
   }

@@ -1,0 +1,49 @@
+.example-list-wrapping {
+  max-width: 500px;
+}
+
+.container-secondary{
+  max-height: 200px !important;
+}
+
+.mat-mdc-card{
+  display: contents !important;
+}
+
+li{
+  list-style: none;
+}
+
+
+.mt-field {
+  width: 100%;
+  margin-left: 4px;
+}
+
+.top {
+  margin-top: .5em;
+}
+
+h1, h4{
+  padding: 0 0 0 0;
+}
+/* Custom styling for chat messages */
+.custom-content-dialog .list-group .sent {
+  text-align: right;
+  margin-left: auto;
+  background-color: #dcf8c6;
+
+}
+
+.custom-content-dialog .list-group .received {
+  text-align: left;
+  margin-right: auto;
+  background-color: #fdd5d5;
+}
+
+.custom-content-dialog .list-group .sent,
+.custom-content-dialog .list-group .received {
+  margin-bottom: 10px; /* Adjust as needed */
+}
+
+/* Additional styling can be added as needed */

@@ -1,28 +1,17 @@
+.card{
+  height: 90vh;
+}
 .mt-field {
   margin-top: .5em;
   width: 100%;
-  height: 70px !important;
+}
+
+.mdc-notched-outline {
+  height: 90px !important;
 }
 
 .top {
   margin-top: .6em;
-}
-
-.flex-container {
-  // Por defecto tiene un flex-direction: row
-  display: contents;
-}
-
-.cl-mar {
-  padding: 0 0 0 1em;
-}
-
-.mat-mdc-table .mat-mdc-header-cell {
-  font-size: small !important;
-}
-
-td {
-  font-size: smaller !important;
 }
 
 .completed {
@@ -33,32 +22,74 @@ td {
   background-color: #ffc0c0 !important;
 }
 
-.pointer{
+.pointer {
   cursor: pointer;
 }
 
-.container {
-  max-width: 100%;
-}
 
+mat-form-field {
+  height: 50px;
 
-.button-container {
-  display: flex;
-  justify-content: center; // Centers the buttons horizontally
+  input {
+    height: 20px;
+    font-size: 15px;
+  }
 
-  .button {
-    margin: 0 10px; // Adds margin between buttons for spacing
+  mat-select {
+    height: 5px;
   }
 }
 
-//!All styles under the following tag must be applied when the max-width is reached
-@media (max-width: 1200px){
-  .container{
-      max-width: 100% !important;
+.button-container {
+  margin-top: 5px;
+  display: flex;
+  justify-content: space-between;
+
+  .button {
+    // flex: 1; // Allow buttons to grow and fill the space evenly
+    margin: 0 5px;
+    margin-bottom: 10px;
+    background-color: rgba(0, 0, 255, 0.793);
+  }
+
+  .btn-right {
+    margin-left: 10px;
+    background-color: #B20B0B;
+    color: #ffff;
+  }
+}
+.two-color-line {
+  width: 100%;
+  height: 5px; /* Adjust the height as needed */
+  // background: linear-gradient(to right, red 50%, blue 50%);
+  background: linear-gradient(to right, red 33%, black 60%,  red 33%);
+}
+
+
+.button-add {
+  display: flex;
+  justify-content: flex-end;
+}
+
+
+
+.card {
+  display: inline;
+}
+
+@media (max-width: 1366px) {
+  .container {
+    max-width: 100% !important;
   }
 
   .mt-field {
-      margin-top: .5em;
-      width: 100%;
+    margin-top: .5em;
+    width: 100%;
+  }
+
+
+  td {
+    font-size: 11px !important;
   }
 }
+

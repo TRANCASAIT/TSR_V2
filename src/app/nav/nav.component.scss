@@ -31,10 +31,11 @@
 .example-footer {
   padding: 1em;
   text-align: center;
+  font-size: small;
   display: block;
   color: #f7dfdf;
   background: linear-gradient(to bottom right, #bc0b0b, #ff0000);
-  height: 50px;
+  height: 40px;
 }
 
 .example-footer .social-media-links {
@@ -73,7 +74,7 @@
 
 .example-toolbar {
   color: #f7dfdf;
-  height: 50px;
+  height: 42px;
   background: linear-gradient(to bottom right, #bc0b0b, #ff0000); /* Example gradient colors */
 
   /* Make sure the toolbar will stay on top of the content as it scrolls past. */

@@ -112,7 +112,7 @@ export class ApiService {
   }
 
   updateLayoutStatus(obj: UpdateLayoutStatus) {
-    return this.http.post(`${this._URL}`, obj);
+    return this.http.post(`${this._URL}Documents/UpdateLayoutStatus`, obj);
   }
 
   getCustomers() {
@@ -261,5 +261,17 @@ export class ApiService {
   getServiceReportsFiltered(obj:any){
     return this.http.post(`${this._URL}ServiceRequestReports/GetServiceReportsFilter`,obj)
   }
+
+  getComments(id:any){
+    return this.http.get(`${this._URL}Comments/GetComments?id=${id}`)
+  }
+
+  createComment(obj: any) {
+    return this.http.post(
+      `${this._URL}Comments/SaveComment`,
+      obj
+    );
+  }
+
 
 }

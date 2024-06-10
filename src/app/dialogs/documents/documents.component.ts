@@ -11,7 +11,7 @@ import { ErrorStateMatcher, ThemePalette } from '@angular/material/core';
 import { ProgressSpinnerMode } from '@angular/material/progress-spinner';
 import { MatPaginator } from '@angular/material/paginator';
 import { LocalstorageService } from '../../services/localstorage.service';
-import { Observable } from 'rxjs';
+import { Observable, Subscription, takeUntil } from 'rxjs';
 import { HttpClient, HttpEventType, HttpResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { FileUploadService } from '../../services/file-upload.service';
@@ -24,6 +24,9 @@ import { FormControl, FormGroupDirective, NgForm, FormGroup, Validators } from '
 import axios from 'axios';
 import { UpdateConsignmentNote, UpdateLayoutStatus } from '../../interfaces/serviceRequest';
 import { leftToRightAnimation } from '../../animations/tsr_animations';
+import { Subject } from '@microsoft/signalr';
+import { HelpersService } from '../../services/helpers.service';
+import { NotificationsService } from '../../services/notifications.service';
 
 @Component({
   selector: 'app-documents',
@@ -66,26 +69,39 @@ export class DocumentsComponent implements OnInit {
   dataObs$!: Observable<any>;
   isCustomer = false;
   hasPrivileges: boolean = false;
+  private _onDestroy = new Subject<void>();
+  private docUpdatedSubscription: Subscription;
+
   constructor(
     @Inject(MAT_DIALOG_DATA) public service: any,
     private API: ApiService,
     private lss: LocalstorageService,
     private _snackBar: SnackbarService,
     private logOut: LogoutService,
-    private http: HttpClient,
     public dialog: MatDialog,
     private jwt: JwtService,
     private uploadService: FileUploadService,
-    private snackBar: SnackbarService
-  ) {}
+    private snackBar: SnackbarService,
+    private helpers: HelpersService,
+    private recordService: NotificationsService,
+
+  ) {
+
+    this.docUpdatedSubscription = this.recordService.getUpdatedRecordDocObservable().subscribe(() => {
+      this.getDocuments();
+    });
+  }
 
   ngOnInit(): void {
+    this.hasPrivileges = this.checkCustomerType();
     this.getDocuments();
+    this.jwt.getIsCustomer() === 'False' ? this.isCustomer = false : this.isCustomer = true;
   }
 
   getDocuments() {
     const { serviceRequestId } = this.service.service;
-    this.API.getDocuments(serviceRequestId).subscribe({
+    this.API.getDocuments(serviceRequestId)
+    .subscribe({
       next: (res: any) => {
         this.spinner = false;
         this.dataSource = new MatTableDataSource<any>(res);
@@ -95,18 +111,7 @@ export class DocumentsComponent implements OnInit {
       },
       error: (err: any) => {
         this.spinner = false;
-        if(err.error !== undefined){
-          const { state, message } = err.error;
-          if(state === 1){
-            this.snackBar.snackBarMessage(message, false);
-          }
-          else if(state === 401){
-            this.snackBar.snackBarMessage(message, false);
-            this.logOut.logOut();
-          }
-        }else{
-          this.snackBar.snackBarMessage('Algo ha salido mal, intente mas tarde.', false);
-        }
+        this.helpers.returnError(err);
       },
     });
   }
@@ -177,7 +182,40 @@ export class DocumentsComponent implements OnInit {
       const file: File | null = this.selectedFiles.item(0);
       if (file) {
         this.currentFile = file;
-
+        this.uploadService.uploadCustomer(this.currentFile, el).subscribe({
+          next: (event: any) => {
+            if (event.type === HttpEventType.UploadProgress) {
+              this.progress = Math.round(100 * event.loaded / event.total);
+            } else if (event instanceof HttpResponse) {
+              this.message = event.body.message;
+              this.state = event.body.state;
+              if (this.state === 1) {
+                this._snackBar.snackBarMessage(this.message, false);
+                this.getDocuments();
+              } else if (this.state === 0) {
+                this._snackBar.snackBarMessage(this.message, true);
+                this.getDocuments();
+              }else if(this.state === 401){
+                this._snackBar.snackBarMessage(this.message, false);
+                this.getDocuments();
+              } else {
+                this._snackBar.snackBarMessage('Something went wrong', false);
+                this.getDocuments();
+              }
+            }
+          },
+          error: (err: any) => {
+            this.progress = 0;
+            if (err.error && err.error.message) {
+              this.message = err.error.message;
+              this._snackBar.snackBarMessage(this.message, false)
+            } else {
+              this._snackBar.snackBarMessage('The file could not be uploaded', false)
+            }
+            this.currentFile = undefined;
+            this.getDocuments();
+          }
+        });
         this.selectedFiles = undefined;
       }
     }
@@ -190,7 +228,7 @@ export class DocumentsComponent implements OnInit {
       const file: File | null = this.selectedFiles.item(0);
       if (file) {
         this.currentFile = file;
-        this.uploadService.uploadCustomer(this.currentFile, el).subscribe({
+        this.uploadService.uploadAdmin(this.currentFile, el).subscribe({
           next: (event: any) => {
             if (event.type === HttpEventType.UploadProgress) {
               this.progress = Math.round(100 * event.loaded / event.total);
@@ -234,10 +272,13 @@ export class DocumentsComponent implements OnInit {
     dialogConfig.width = '50%';
     dialogConfig.maxWidth = '70vw';
     dialogConfig.data = obj;
+    const dialogConfirm = this.dialog.open(CommentsComponent, dialogConfig);
+    dialogConfirm.afterClosed().subscribe(confirm => {
+      this.getDocuments();
+    });
   }
 
   openOptions(obj: any) {
-    // this.trigger.openMenu();
     const dialogConfig = new MatDialogConfig();
     dialogConfig.data = obj;
     dialogConfig.width = '20vw';
@@ -256,6 +297,7 @@ export class DocumentsComponent implements OnInit {
     dialogConfirm.afterClosed().subscribe(confirm => {
       if(confirm !== undefined){
         const { serviceRequestId, documentId, acceptLayout, notAcceptLayout } = confirm;
+
         let obj = {
           ServiceRequestId: serviceRequestId,
           DocumentId: documentId,
@@ -265,9 +307,11 @@ export class DocumentsComponent implements OnInit {
 
         this.API.updateLayoutStatus(obj).subscribe({
           next: (res:any) => {
-            if(res.state !==  undefined){
+            if(res.state !==  undefined && res.state !== null){
               const { state, message } = res;
               state === 1 ? this.snackBar.snackBarMessage(message,state) : null;
+              dialogConfirm.close();
+              this.getDocuments();
             }
           },
           error: (err) => {
@@ -325,6 +369,12 @@ export class DocumentsComponent implements OnInit {
   beginDownload() {
     this.snackBar.snackBarMessage('Espere un momento', true);
   }
+
+  ngOnDestroy() {
+    if (this.docUpdatedSubscription) {
+      this.docUpdatedSubscription.unsubscribe();
+    }
+  }
 }
 
 
@@ -367,7 +417,7 @@ export class ConsignmentNoteDialog implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: any,
     private http: HttpClient,
     private _snackBar: SnackbarService,
-    private router: Router,
+    private helpers: HelpersService,
     private logOut: LogoutService,
     private API: ApiService
   ) { }
@@ -398,47 +448,16 @@ export class ConsignmentNoteDialog implements OnInit {
         if(res.state !== undefined){
           const {state, message} = res;
           if(state === 0){
-            this._snackBar.snackBarMessage(message,false);
+            this._snackBar.snackBarMessage(message,true);
+            this.dialogConfirm.close();
           }
         }
       },
       error: (err) => {
-        if(err.error !== undefined){
-          const{ state, message } = err.error;
-          if (state === 1 || state === 401) {
-            this._snackBar.snackBarMessage(message, false);
-            state === 401 ? this.logOut.logOut() : null;
-          }
-        }else{
-          this._snackBar.snackBarMessage('Algo ha salido mal, intente mas tarde.', false);
-        }
+        this.spinnerOk = false;
+        this.helpers.returnError(err);
       }
     });
-
-    this.http.post<any>(`${environment.API_URL}Documents/UpdateConsignmentNote`, obj).subscribe({
-      next: (res) => {
-        this.spinnerOk = false;
-        if (res.state === 0) {
-          this._snackBar.snackBarMessage(res.message, true);
-          this.dialogConfirm.close({ data: true });
-        }
-      },
-      error: (err) => {
-        this.spinnerOk = false;
-        if (err.error !== undefined) {
-          if (err.error.state !== undefined) {
-            if(err.error.state === 1){
-            this._snackBar.snackBarMessage(err.error.message, false);
-            }else if(err.error.state === 401){
-              this.router.navigateByUrl('/login');
-            }
-          } else {
-            this._snackBar.snackBarMessage('Something went wrong', false);
-          }
-        }
-      }
-    });
-
   }
 }
 

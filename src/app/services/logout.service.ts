@@ -23,17 +23,17 @@ export class LogoutService {
     if (uid) {
       this.API.logOut(Number(uid)).subscribe({
         next: (res: any) => {
-          if(res){
+          if(res.state !== undefined && res.state !== null){
             const { state, message } = res;
             if(state === 0){
               this.router.navigate(['/login']);
               this.snackBar.snackBarMessage(message, true);
+              this.lss.remove();
             }
           }
-          this.lss.remove();
         },
         error: (err) => {
-          console.log(err);
+          this.snackBar.snackBarMessage('Algo ha salido mal', false);
         },
       });
     }

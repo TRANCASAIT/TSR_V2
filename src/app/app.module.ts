@@ -10,11 +10,11 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { CitiesComponent } from './components/cities/cities.component';
-import { ExternalUsersComponent,CustomerStateDialog } from './components/external-users/external-users.component';
+import { ExternalUsersComponent, CustomerStateDialog } from './components/external-users/external-users.component';
 import { InternalUsersComponent, UserStatusDialog } from './components/internal-users/internal-users.component';
 import { CustomersComponent, CompanyStateDialog } from './components/customers/customers.component';
 import { OperationTypesComponent } from './components/operation-types/operation-types.component';
-import { RequestsComponent } from './components/requests/requests.component';
+import { RequestsComponent, RemoveRequestCustomerDialog, UpdateBoxCustomDialog, UpdateReferenceCustomer, UpdateOperationCustomer } from './components/requests/requests.component';
 import { RequestReportsComponent } from './components/request-reports/request-reports.component';
 import { StatesComponent } from './components/states/states.component';
 import { StatusesComponent } from './components/statuses/statuses.component';
@@ -51,7 +51,10 @@ import { LineChartComponent } from './components/line-chart/line-chart.component
     CustomersComponent,
     OperationTypesComponent,
     RequestsComponent,
+    UpdateReferenceCustomer,
+    RemoveRequestCustomerDialog,
     RequestReportsComponent,
+    UpdateBoxCustomDialog,
     StatesComponent,
     StatusesComponent,
     CityComponent,
@@ -62,6 +65,7 @@ import { LineChartComponent } from './components/line-chart/line-chart.component
     InternalUserComponent,
     StateComponent,
     RequestComponent,
+    UpdateOperationCustomer,
     NavComponent,
     LoginComponent,
     ResetSessionComponent,

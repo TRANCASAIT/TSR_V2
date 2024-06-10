@@ -5,6 +5,7 @@ import { Observable, catchError, throwError } from 'rxjs';
 import { ApiService } from './api.service';
 import { JwtService } from './jwt.service';
 import { SnackbarService } from './snackbar.service';
+import { LogoutService } from './logout.service';
 
 @Injectable({
   providedIn: 'root'
@@ -14,6 +15,7 @@ export class AuthInterceptorService {
   constructor(
     private router: Router,
     private _snackBar: SnackbarService,
+    private logOut: LogoutService
   ) { }
 
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
@@ -32,7 +34,7 @@ export class AuthInterceptorService {
         if (err.status === 401) {
           this._snackBar.snackBarMessage('Favor de iniciar sesión nuevamente', false);
 
-          this.router.navigateByUrl('/login');
+          this.logOut.logOut();
         }
         return throwError(() => err);
       })

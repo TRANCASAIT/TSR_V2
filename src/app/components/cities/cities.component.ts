@@ -53,9 +53,7 @@ export class CitiesComponent implements OnInit {
 
   ngOnInit() {
     this.spinnerOk = true;
-    setTimeout(() => {
-      this.getData();
-    }, 2000);
+    this.getData();
   }
 
   getData() {

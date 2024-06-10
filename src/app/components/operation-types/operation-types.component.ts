@@ -42,9 +42,7 @@ constructor(
 
 ngOnInit() {
   this.spinner = true;
-    setTimeout(() => {
-      this.getData();
-    }, 2000);
+  this.getData();
 }
 
 getData() {

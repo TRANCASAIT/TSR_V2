@@ -27,7 +27,7 @@
                     [matTooltip]="((element.statusId !== 5) && (isCustomer)) ? 'Agregar Fra. MX' : 'Descargar Fra. MX'">
                     <button
                       [ngClass]="{'pdf-enabled': element.invoiceMXCompleted === true, 'pdf-disabled': element.invoiceMXCompleted === false}">
-                      <input id="invMx{{element.documentId}}" type="file" class="display-input"
+                      <input id="invMx{{element.documentId}}" type="file" class="display-input" accept="application/pdf"
                         *ngIf="(element.notAcceptedLayoutDC === false) && (isCustomer) && (element.statusId !== 5) && (element.invoiceMXCompleted === false)"
                         (change)="selectFile($event, element.documentId, {serviceRequestId: element.serviceRequestId, documentId: element.documentId, stopNumber: element.stopNumber})" />
                       <mat-icon class="notIcon" *ngIf="(element.invoiceMXCompleted) && (!isCustomer)"
@@ -55,7 +55,7 @@
                     [matTooltip]="((element.statusId !== 5) && (isCustomer)) ? 'Agregar Fra. USA' : 'Descargar Fra. USA'">
                     <button
                       [ngClass]="{'pdf-enabled': element.invoiceUSACompleted === true, 'pdf-disabled': element.invoiceUSACompleted === false}">
-                      <input id="invUsa{{element.documentId}}" type="file" class="display-input"
+                      <input id="invUsa{{element.documentId}}" type="file" class="display-input" accept="application/pdf"
                         *ngIf="(element.notAcceptedLayoutDC === false) && (isCustomer) && (element.statusId !== 5) && (element.invoiceUSACompleted===false)"
                         (change)="selectFile($event, element.documentId, {serviceRequestId: element.serviceRequestId, documentId: element.documentId, stopNumber: element.stopNumber})" />
                       <mat-icon class="notIcon" *ngIf="(element.invoiceUSACompleted) && (!isCustomer)"
@@ -81,7 +81,7 @@
                     [matTooltip]="((element.statusId !== 5) && (isCustomer)) ? 'Agregar BOL' : 'Descargar BOL'">
                     <button
                       [ngClass]="{'pdf-enabled': element.bolCompleted === true, 'pdf-disabled': element.bolCompleted === false}">
-                      <input id="bol{{element.documentId}}" type="file" class="display-input"
+                      <input id="bol{{element.documentId}}" type="file" class="display-input" accept="application/pdf"
                         *ngIf="(element.notAcceptedLayoutDC === false) && (isCustomer) && (element.statusId !== 5) && (element.bolCompleted === false)"
                         (change)="selectFile($event, element.documentId, {serviceRequestId: element.serviceRequestId, documentId: element.documentId, stopNumber: element.stopNumber})">
                       <mat-icon class="notIcon" *ngIf="(element.bolCompleted) && (!isCustomer)"
@@ -107,7 +107,7 @@
                     [matTooltip]="((element.statusId !== 5) && (isCustomer)) ? 'Agregar Inward/Manifest' : 'Descargar Inward/Manifest'">
                     <button
                       [ngClass]="{'pdf-enabled': element.inwardCompleted === true, 'pdf-disabled': element.inwardCompleted === false}">
-                      <input id="inwd{{element.documentId}}" type="file" class="display-input"
+                      <input id="inwd{{element.documentId}}" type="file" class="display-input" accept="application/pdf"
                         *ngIf="(element.notAcceptedLayoutDC === false) && (isCustomer) && (element.statusId !== 5) && (element.inwardCompleted === false)"
                         (change)="selectFile($event, element.documentId, {serviceRequestId: element.serviceRequestId, documentId: element.documentId, stopNumber: element.stopNumber})" />
                       <mat-icon class="notIcon" *ngIf="(element.inwardCompleted) && (!isCustomer)"
@@ -250,7 +250,7 @@
                   <div class="col-sm-6">
                     <button
                       [ngClass]="{'pdf-enabled': element.originalPDFCompleted === true, 'pdf-disabled': element.originalPDFCompleted === false}">
-                      <input id="origPdf{{element.documentId}}" type="file" class="display-input"
+                      <input id="origPdf{{element.documentId}}" type="file" class="display-input" accept="application/pdf"
                         *ngIf="(element.notAcceptedLayoutDC === false) && (isCustomer === false) && (element.statusId <= 4) && (element.originalPDFCompleted === false) && (element.layoutCompleted)"
                         (change)="selectFile($event, element.documentId, {serviceRequestId: element.serviceRequestId, documentId: element.documentId, stopNumber: element.stopNumber})" />
                       <mat-icon class="notIcon" *ngIf="(element.originalPDFCompleted) && (isCustomer)"
@@ -275,7 +275,7 @@
                     [matTooltip]="((element.statusId !== 5)&& (isCustomer === false)) ? 'Agregar PDF Operacional' : 'Descargar PDF Operacional'">
                     <button
                       [ngClass]="{'pdf-enabled': element.operationsPDFCompleted === true, 'pdf-disabled': element.operationsPDFCompleted === false}">
-                      <input id="optPdf{{element.documentId}}" type="file" class="display-input"
+                      <input id="optPdf{{element.documentId}}" type="file" class="display-input" accept="application/pdf"
                         *ngIf="(element.notAcceptedLayoutDC === false) && (isCustomer === false) && (element.statusId <= 4) && (element.operationsPDFCompleted === false) && (element.layoutCompleted)"
                         (change)="selectFile($event, element.documentId, {serviceRequestId: element.serviceRequestId, documentId: element.documentId, stopNumber: element.stopNumber})" />
                       <mat-icon class="notIcon" *ngIf="(element.operationsPDFCompleted) && (isCustomer) && (hasPrivileges)"

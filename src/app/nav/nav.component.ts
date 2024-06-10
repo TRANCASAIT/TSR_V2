@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnDestroy } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { Menu } from '../interfaces/menu';
 import { MediaMatcher } from '@angular/cdk/layout';
 import { Router } from '@angular/router';
@@ -9,27 +9,29 @@ import { LocalstorageService } from '../services/localstorage.service';
 import { SnackbarService } from '../services/snackbar.service';
 import { LogoutService } from '../services/logout.service';
 import { SignalRService } from '../services/signal-r.service';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'app-nav',
   templateUrl: './nav.component.html',
-  styleUrl: './nav.component.scss',
+  styleUrls: ['./nav.component.scss'],
 })
-export class NavComponent implements OnDestroy {
-  //declare instances
+export class NavComponent implements OnInit, OnDestroy {
   mobileQuery: MediaQueryList;
   _userType = this.jwt.getRole();
   menu: Menu[] = [];
   title: string = '';
   user: String = '';
-  _mobileQueryListener: () => void;
+  private _mobileQueryListener: () => void;
+  private destroy$ = new Subject<void>();
 
   constructor(
-    cdf: ChangeDetectorRef,
-    media: MediaMatcher,
+    private cdf: ChangeDetectorRef,
+    private media: MediaMatcher,
     private _menuService: MenuService,
     private signalRService: SignalRService,
-        private jwt: JwtService,
+    private jwt: JwtService,
     private API: ApiService,
     private lss: LocalstorageService,
     private snackBar: SnackbarService,
@@ -40,22 +42,19 @@ export class NavComponent implements OnDestroy {
     this.mobileQuery.addEventListener('change', this._mobileQueryListener);
   }
 
-  ngOnDestroy(): void {
-    this.mobileQuery.removeEventListener('change', this._mobileQueryListener);
-  }
-
   ngOnInit(): void {
     this.user = this.jwt.getUserName();
     this.cargarMenu();
   }
 
   cargarMenu() {
-    this._menuService.getMenu(this._userType).subscribe((data) => {
+    this._menuService.getMenu(this._userType).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe((data) => {
       this.menu = data;
     });
   }
 
-  shouldRun = true;
   cerrarNav() {
     this.cargarMenu();
   }
@@ -64,4 +63,9 @@ export class NavComponent implements OnDestroy {
     this.logOutSer.logOut();
   }
 
+  ngOnDestroy(): void {
+    this.mobileQuery.removeEventListener('change', this._mobileQueryListener);
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 }
