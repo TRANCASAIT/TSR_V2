@@ -4,7 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { environment } from '../../environments/environment.development';
 import { SnackbarService } from '../services/snackbar.service';
-import { BreakpointObserver } from '@angular/cdk/layout';
+
 
 @Component({
   selector: 'app-recover-password',
@@ -35,8 +35,7 @@ export class RecoverPasswordComponent implements OnInit{
   constructor(private _formBuilder: FormBuilder,
     private _snackBar: MatSnackBar,
     private router: Router,
-    private _snackBarSvs: SnackbarService,
-    private breakpointObserver: BreakpointObserver
+    private _snackBarSvs: SnackbarService
     ) {}
   //return elements of first fg
   get formGroupFirst() { return this.firstFormGroup.controls; }
