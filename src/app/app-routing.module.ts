@@ -19,6 +19,8 @@ import { StatusesComponent } from './components/statuses/statuses.component';
 import { RequestReportsComponent } from './components/request-reports/request-reports.component';
 import { LineChartComponent } from './components/line-chart/line-chart.component';
 import { CustomerguardService } from './services/customerguard.service';
+import { AdminguardService } from './services/adminguard.service';
+import { ReopenedRequestsComponent } from './components/reopened-requests/reopened-requests.component';
 
 const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -26,35 +28,48 @@ const routes: Routes = [
   { path: 'reset-session', component: ResetSessionComponent },
   { path: 'recover-password', component: RecoverPasswordComponent },
 
-  { path: 'nav-sa', component: NavComponent,
+  {
+    path: 'nav-sa',
+    component: NavComponent,
     canActivate: [AuthGuardService, SaguardService],
     children: [
       { path: 'requests-ccp', component: RequestsCcpComponent },
       { path: 'requests-reports', component: RequestReportsComponent },
       { path: 'requests', component: RequestsComponent },
       { path: 'chat', component: ChatComponent },
-      {path: 'states', component: StatesComponent},
-      {path: 'cities', component: CitiesComponent},
+      { path: 'states', component: StatesComponent },
+      { path: 'cities', component: CitiesComponent },
       { path: 'customers', component: CustomersComponent },
       { path: 'customer-users', component: ExternalUsersComponent },
       { path: 'users', component: InternalUsersComponent },
       { path: 'operation-types', component: OperationTypesComponent },
       { path: 'status', component: StatusesComponent },
       { path: 'linea', component: LineChartComponent },
+      { path: 'reopened-requests', component: ReopenedRequestsComponent },
+    ],
+  },
+  {
+    path: 'ccp', component: NavComponent,
+    canActivate: [AuthGuardService, AdminguardService],
+    children: [
+      { path: 'requests', component: RequestsCcpComponent },
+      { path: 'services-reports', component: RequestReportsComponent },
     ]
   },
-  {path: 'nav-custom', component: NavComponent,
+  {
+    path: 'nav-custom',
+    component: NavComponent,
     canActivate: [AuthGuardService, CustomerguardService],
     children: [
       { path: 'requests', component: RequestsComponent },
       { path: 'services-reports', component: RequestReportsComponent },
-    ]
+    ],
   },
   { path: '**', redirectTo: '/login', pathMatch: 'full' },
 ];
 
 @NgModule({
   imports: [RouterModule.forRoot(routes)],
-  exports: [RouterModule]
+  exports: [RouterModule],
 })
-export class AppRoutingModule { }
+export class AppRoutingModule {}

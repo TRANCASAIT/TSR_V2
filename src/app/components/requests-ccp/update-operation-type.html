@@ -8,7 +8,7 @@
               <input matInput formControlName="serviceRequestId" [errorStateMatcher]="matcher" hidden>
               <div class="row">
                   <div class="col-sm-6">
-                      <mat-form-field appearance="fill" class="mt-field">
+                      <mat-form-field appearance="outline" class="mt-field">
                           <mat-label>Operación</mat-label>
                           <mat-select placeholder="Seleccione una operación" formControlName="operationTypeId">
                               <mat-option *ngFor="let item of operationsList" [value]="item['operationTypeId']">{{

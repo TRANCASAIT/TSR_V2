@@ -76,6 +76,10 @@ mat-form-field {
   display: inline;
 }
 
+.example-section{
+  float: left !important;
+}
+
 //!All styles under the following tag must be applied when the max-width is reached
 @media (max-width: 1366px) {
   .container {

@@ -99,7 +99,7 @@ export class LoginComponent implements OnInit {
         }, 1500);
       } else if (role === environment.roles.rol2 || role === environment.roles.rol3) { //administrativos
         setTimeout(() => {
-          this.router.navigate(["/nav-admin/requests"]);
+          this.router.navigate(["/ccp/requests"]);
         }, 1500);
       } else if (role === environment.roles.rol4 || role === environment.roles.rol5) { //clientes
         setTimeout(() => {

@@ -8,7 +8,6 @@
         <div class="stepper-container">
           <mat-card-title class="text-center">Restablecer Sesión</mat-card-title>
           <mat-card-content>
-            <form id="logIn">
               <mat-stepper orientation="vertical" linear #stepper>
                 <mat-step [stepControl]="firstFormGroup" [editable]="isEditable">
                   <form [formGroup]="firstFormGroup">
@@ -46,7 +45,7 @@
                     <label class="stepper-label">Finalizado</label>
                   </ng-template>
                   <p>
-                    <mat-icon aria-hidden="false" class="check-color" aria-label="Example home icon"
+                    <mat-icon class="check-color"
                       fontIcon="check"></mat-icon>
                     Será redirigido automaticamente, en caso contrario, de clic en el siguiente botón
                   </p>
@@ -58,7 +57,6 @@
               <div class="text-center">
                 <button type="button" mat-raised-button class="ancho" color="primary" routerLink="/login">Cancelar</button>
               </div>
-            </form>
           </mat-card-content>
         </div>
       </div>

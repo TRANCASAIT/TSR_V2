@@ -1,4 +1,4 @@
-import { Component, ElementRef, Inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { ApplicationRef, Component, ElementRef, Inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ApiService } from '../../services/api.service';
 import { SnackbarService } from '../../services/snackbar.service';
 import { MatPaginator } from '@angular/material/paginator';
@@ -63,10 +63,12 @@ export class RequestsComponent implements OnInit, OnDestroy{
 
   public filteredCompanies: ReplaySubject<any[]> = new ReplaySubject(1);
 
-  protected _onDestroy = new Subject();
-  private subscription: Subscription;
-  private recordUpdatedSubscription: Subscription;
-  private recordRemovedSubscription: Subscription;
+  private _onDestroy = new Subject<void>();
+  private subscription!: Subscription;
+  private dataSubscription!: Subscription;
+  private recordUpdatedSubscription!: Subscription;
+  private recordRemovedSubscription!: Subscription;
+  private recordNewSubscription!: Subscription;
   @ViewChild('singleSelect', { static: true }) singleSelect!: MatSelect;
   showTable: boolean = true;
   constructor(
@@ -75,19 +77,10 @@ export class RequestsComponent implements OnInit, OnDestroy{
     public dialog: MatDialog,
     private helpers: HelpersService,
     private jwt: JwtService,
+    private appRef: ApplicationRef,
     private recordService: NotificationsService,
   ){
-    this.subscription = this.recordService.getNewRecordObservable().subscribe(() => {
-      this.getSR();
-    });
 
-    this.recordUpdatedSubscription = this.recordService.getUpdatedRecordObservable().subscribe(() => {
-      this.getSR();
-    });
-
-    this.recordRemovedSubscription = this.recordService.getRemovedRecordObservable().subscribe(() => {
-      this.getSR();
-    });
   }
 
   ngOnInit() {
@@ -100,9 +93,56 @@ export class RequestsComponent implements OnInit, OnDestroy{
 
   }
 
+  private loadInitialData(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.dataSubscription = this.API.getServiceRequest()
+        .pipe(takeUntil(this._onDestroy))
+        .subscribe({
+          next: (res: any) => {
+            this.spinner = false;
+            this.dataSource = new MatTableDataSource<any>(res);
+            this.dataSource.paginator = this.paginator;
+            this.dataSource.data.length = res.length;
+            this.dataObs$ = this.dataSource.connect();
+            this.showTable = false;
+            this.checkSearchBar();
+            resolve(); // Resolve the promise once data is loaded
+          },
+          error: (err: any) => {
+            this.spinner = false;
+            this.helpers.returnError(err);
+            reject(err); // Reject the promise if there's an error
+          },
+        });
+    });
+  }
+
+
+  private startSignalRConnection(): void {
+    this.recordService.startConnection();
+    this.recordUpdatedSubscription = this.recordService.getUpdatedRecordObservable()
+    .pipe(takeUntil(this._onDestroy))
+    .subscribe(() => {
+      this.getSR();
+    });
+
+    this.recordRemovedSubscription = this.recordService
+    .getRemovedRecordObservable()
+    .pipe(takeUntil(this._onDestroy))
+    .subscribe(() => {
+      this.getSR();
+    });
+
+    this.recordNewSubscription = this.recordService.getNewRecordObservable()
+    .pipe(takeUntil(this._onDestroy))
+    .subscribe(() => {
+      this.getSR();
+    });
+  }
 
   getSR() : any{
-    this.API.getServiceRequest().subscribe({
+    this.showTable = true;
+    this.dataSubscription = this.API.getServiceRequest().subscribe({
       next: (res: any) => {
         this.spinner = false;
         this.dataSource = new MatTableDataSource<any>(res);
@@ -116,8 +156,15 @@ export class RequestsComponent implements OnInit, OnDestroy{
         this.dataSource = new MatTableDataSource<any>();
         this.helpers.returnError(err);
       }
-    })
+    });
 
+  }
+
+  checkSearchBar() {
+    const filterValue = this.inputSearch.nativeElement.value;
+    if (filterValue.trim()) {
+      this.dataSource.filter = filterValue.trim().toLowerCase();
+    }
   }
 
   checkCustomerType(): any{
@@ -322,7 +369,7 @@ export class RequestsComponent implements OnInit, OnDestroy{
       End: end,
       Priority: priority
     }
-
+    this.showTable = true;
     this.API.getServicesFiltered(_obj).subscribe({
       next: (res: any) => {
         this.spinner = false;
@@ -330,6 +377,7 @@ export class RequestsComponent implements OnInit, OnDestroy{
         this.dataSource.paginator = this.paginator;
         this.dataSource.data.length = res.length;
         this.dataObs$ = this.dataSource.connect();
+        this.showTable = false;
       },
       error: (err) => {
         this.dataSource = new MatTableDataSource<any>();
@@ -431,20 +479,45 @@ export class RequestsComponent implements OnInit, OnDestroy{
   }
 
   ngOnDestroy() {
-    if (this.subscription) {
-      this.subscription.unsubscribe();
+    this._onDestroy.next();
+    this._onDestroy.complete();
+
+    if (this.dataSubscription) {
+      this.dataSubscription.unsubscribe();
     }
-    this.recordUpdatedSubscription.unsubscribe();
-    this.recordRemovedSubscription.unsubscribe();
+
+    if (this.recordRemovedSubscription) {
+      this.recordRemovedSubscription.unsubscribe();
+    }
+
+    if (this.recordNewSubscription) {
+      this.recordNewSubscription.unsubscribe();
+    }
+
+    if (this.recordUpdatedSubscription) {
+      this.recordUpdatedSubscription.unsubscribe();
+    }
+
+    this.recordService.stopConnection();
   }
+
 
   getDrops(){
     this.getStatus();
     this.getOperations();
     this.getCustomers();
-    setTimeout(() => {
-      this.getSR();
-    }, 2000);
+
+      this.loadInitialData()
+      .then(() => {
+        this.startSignalRConnection();
+        this.appRef.isStable.pipe(take(1)).subscribe(() => {
+          this.appRef.tick();
+        });
+      })
+      .catch((error) => {
+        this.helpers.returnError(error);
+      });
+
   }
 }
 
@@ -570,7 +643,6 @@ export class UpdateReferenceCustomer implements OnInit {
 
   ngOnInit(): void {
     this.changeText();
-    console.log(this.data)
     const { ServiceRequestId, Reference } = this.data;
 
     this.referenceForm.patchValue({

@@ -3,6 +3,10 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  background-attachment: fixed;
+    background-position: center center !important;
+    background-size: cover !important;
+    align-items: center !important;
   background: linear-gradient(to bottom right, #ff0000, #000000); /* Example gradient colors */
 }
 

@@ -21,6 +21,7 @@ import { CustomerCreate, CustomerUpdate } from '../interfaces/customer';
 import { opTCreate, opTUpdate } from '../interfaces/operationType';
 import { createExternalUser, updateExternalUser } from '../interfaces/externalUser';
 import { updateInternalUser, createInternalUser } from '../interfaces/internalUser';
+import { Observable, catchError, delay, of, retry, throwError } from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
@@ -53,11 +54,35 @@ export class ApiService {
 
   //?ServiceRequests
   getServiceRequest() {
-    return this.http.get(`${this._URL}ServiceRequests/GetServices`);
+    return this.http.get(`${this._URL}ServiceRequests/GetServices`).pipe(
+      retry({
+        count: 3, // number of retries
+        delay: (error, retryCount) => {
+          console.warn(`Retry attempt: ${retryCount}`);
+          return of(error).pipe(delay(2000)); // delay before next retry
+        }
+      }),
+      catchError(error => {
+        console.error('Data load failed after retries:', error);
+        return of({ error: 'Data could not be loaded' }); // fallback data or throwError(error)
+      })
+    );
   }
 
-  getServicesFiltered(obj:any){
-    return this.http.post(`${this._URL}ServiceRequests/GetServicesFiltered`,obj);
+  getServicesFiltered(obj:any): Observable<any>{
+    return this.http.post(`${this._URL}ServiceRequests/GetServicesFiltered`,obj).pipe(
+      retry({
+        count: 3, // number of retries
+        delay: (error, retryCount) => {
+          console.warn(`Retry attempt: ${retryCount}`);
+          return of(error).pipe(delay(2000)); // delay before next retry
+        }
+      }),
+      catchError(error => {
+        console.error('Data load failed after retries:', error);
+        return of({ error: 'Data could not be loaded' }); // fallback data or throwError(error)
+      })
+    );
   }
 
   getServiceCount() {
@@ -274,4 +299,15 @@ export class ApiService {
   }
 
 
+  getReasons(){
+    return this.http.get(`${this._URL}Reasons/GetReasons`)
+  }
+
+  getDecompletedRequests(){
+    return this.http.get(`${this._URL}Reasons/GetDecompletedRequests`)
+  }
+
+  getDecompletedRequestsFull(id:any){
+    return this.http.get(`${this._URL}Reasons/GetDecompletedRequestsFullContext?service=${id}`)
+  }
 }

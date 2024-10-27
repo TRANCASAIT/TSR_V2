@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { HelpersService } from '../../services/helpers.service';
 import { FormControl, FormGroup } from '@angular/forms';
 import { ThemePalette } from '@angular/material/core';
@@ -7,7 +7,7 @@ import { MatPaginator } from '@angular/material/paginator';
 import { ProgressSpinnerMode } from '@angular/material/progress-spinner';
 import { MatSelect } from '@angular/material/select';
 import { MatTableDataSource } from '@angular/material/table';
-import { ReplaySubject, Subject, Observable, takeUntil, take } from 'rxjs';
+import { ReplaySubject, Subject, Observable, takeUntil, take, Subscription } from 'rxjs';
 import { ExcelService } from '../../services/excel.service';
 import { SnackbarService } from '../../services/snackbar.service';
 import { ApiService } from '../../services/api.service';
@@ -21,7 +21,8 @@ import { BreakpointObserver, Breakpoints, BreakpointState } from '@angular/cdk/l
   styleUrl: './request-reports.component.scss',
   animations: [bottomToTopAnimation]
 })
-export class RequestReportsComponent implements OnInit {
+export class RequestReportsComponent implements OnInit, OnDestroy {
+  private subscriptions: Subscription = new Subscription();
   //spinner options
   spinner: Boolean = false;
   value = 50;
@@ -63,7 +64,6 @@ export class RequestReportsComponent implements OnInit {
   constructor(
     public dialog: MatDialog,
     private API: ApiService,
-    private _snackBar: SnackbarService,
     private jwt: JwtService,
     private xlsService: ExcelService,
     private helpers: HelpersService,
@@ -71,7 +71,6 @@ export class RequestReportsComponent implements OnInit {
   ) { }
 
   async ngOnInit() {
-
     await this.getStatus();
     await this.getOperations();
     await this.getCustomers();
@@ -112,7 +111,7 @@ export class RequestReportsComponent implements OnInit {
 
   getData() {
     this.spinner = true;
-    this.API.getServiceReports().subscribe({
+    const subscription = this.API.getServiceReports().subscribe({
       next: (res: any) => {
         this.spinner = false;
         this.dataSource = new MatTableDataSource<any>(res);
@@ -127,6 +126,7 @@ export class RequestReportsComponent implements OnInit {
         this.helpers.returnError(err);
       }
     });
+    this.subscriptions.add(subscription);
   }
 
   applyFilter(event: Event) {
@@ -149,14 +149,15 @@ export class RequestReportsComponent implements OnInit {
   downloadExcel(): void {
     const { start, end } = this.options.value;
     if ((start === undefined && end === undefined)) {
-      this.API.getServiceReports().subscribe({
+      const subscription = this.API.getServiceReports().subscribe({
         next: (res: any) => {
-          this.xlsService.dowloadExcel(res);
+          this.xlsService.downloadExcel(res);
         },
         error: (err: any) => {
           this.helpers.returnError(err);
         }
       });
+      this.subscriptions.add(subscription);
     } else {
       const { boxNumber,
         invoiceNumber,
@@ -175,14 +176,16 @@ export class RequestReportsComponent implements OnInit {
         Start: start,
         End: end,
       }
-      this.API.getServiceReportsFiltered(_obj).subscribe({
+      const subscription = this.API.getServiceReportsFiltered(_obj).subscribe({
         next: (res: any) => {
-          this.xlsService.dowloadExcel(res);
+          this.xlsService.downloadExcel(res);
         },
         error: (err) => {
           this.helpers.returnError(err);
         }
-      })
+      });
+
+      this.subscriptions.add(subscription);
     }
   }
 
@@ -231,7 +234,7 @@ export class RequestReportsComponent implements OnInit {
       End: end,
     }
 
-    this.API.getServiceReportsFiltered(_obj).subscribe({
+    const subscription = this.API.getServiceReportsFiltered(_obj).subscribe({
       next: (res: any) => {
         this.spinner = false;
         this.dataSource = new MatTableDataSource<any>(res);
@@ -245,6 +248,7 @@ export class RequestReportsComponent implements OnInit {
         this.helpers.returnError(err);
       }
     });
+    this.subscriptions.add(subscription);
   }
 
   checkFilters() {
@@ -321,6 +325,7 @@ export class RequestReportsComponent implements OnInit {
   ngOnDestroy() {
     this._onDestroy.next(1);
     this._onDestroy.complete();
+    this.subscriptions.unsubscribe();  // Unsubscribe from all subscriptions
   }
 
   ngAfterViewInit() {

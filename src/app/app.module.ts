@@ -39,6 +39,9 @@ import { DocumentsComponent, ConsignmentNoteDialog, AcceptRejectLayout, Document
 import { ChartComponent } from './components/chart/chart.component';
 import { ChatComponent } from './components/chat/chat.component';
 import { LineChartComponent } from './components/line-chart/line-chart.component';
+import { BackStepComponent } from './dialogs/back-step/back-step.component';
+import { ReopenedRequestsComponent } from './components/reopened-requests/reopened-requests.component';
+import { ReopenedRequestComponent } from './dialogs/reopened-request/reopened-request.component';
 
 @NgModule({ declarations: [
         AppComponent,
@@ -85,6 +88,9 @@ import { LineChartComponent } from './components/line-chart/line-chart.component
         AcceptRejectLayout,
         CompanyStateDialog,
         LineChartComponent,
+        BackStepComponent,
+        ReopenedRequestsComponent,
+        ReopenedRequestComponent,
     ],
     bootstrap: [AppComponent], imports: [FormsModule,
         ReactiveFormsModule,

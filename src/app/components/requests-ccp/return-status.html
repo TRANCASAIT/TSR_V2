@@ -1,9 +1,65 @@
 <div class="custom-dialog-content">
   <div mat-dialog-content>
-      <p style="color: black;">¿Esta seguro de regresar el folio: <b>{{folio}} - {{customer}}</b> al estatus previo?</p>
+    <p style="color: black;">¿Esta seguro de regresar el folio: <b>{{folio}} - {{customer}}</b> al estatus previo?</p>
+
+    <form [formGroup]="statusForm">
+      <div class="text-center">
+        <input matInput formControlName="serviceRequestId" [errorStateMatcher]="matcher" hidden>
+
+        <div class="row" *ngIf="statusForm.get('otherReason')?.value === false">
+          <div class="col-sm-12">
+            <mat-form-field appearance="outline" class="mt-field">
+              <mat-label>Presione para seleccionar un motivo</mat-label>
+              <mat-select placeholder="Motivo" formControlName="reasonId" #singleSelect>
+                <!-- <mat-option *ngFor="let item of customersList" [value]="item['customerId']">{{
+                      item['name']
+                      }}</mat-option> -->
+                <mat-option>
+                  <ngx-mat-select-search [formControl]="reasonFilterCtrl" placeholderLabel="Buscar"
+                    noEntriesFoundLabel="No encontrado"></ngx-mat-select-search>
+                </mat-option>
+                <mat-option *ngFor="let company of filteredReasons | async" [value]="company.reasonId">
+                  {{company.reason}}
+                </mat-option>
+              </mat-select>
+              <mat-error *ngIf="statusForm.hasError('required')"> Este campo es requerido</mat-error>
+            </mat-form-field>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6">
+            <section class="example-section" style="float: left;">
+              <p>
+                <mat-checkbox formControlName="otherReason">Otro Motivo</mat-checkbox>
+              </p>
+            </section>
+          </div>
+        </div>
+
+        <div class="row" *ngIf="statusForm.get('otherReason')?.value">
+          <div class="col-sm-12">
+            <mat-form-field appearance="outline" class="mt-field">
+              <mat-label>Ingrese el motivo en caso de no estar listado.</mat-label>
+              <input matInput placeholder="Motivo" formControlName="reason" [errorStateMatcher]="matcher">
+              <mat-error>Este campo es requerido</mat-error>
+            </mat-form-field>
+          </div>
+        </div>
+
+        <mat-dialog-actions align="center">
+
+          <button [disabled]="statusForm.invalid" color="warn" mat-raised-button
+            (click)="onYesClick(statusForm.value)">Sí</button>
+          <button mat-raised-button mat-dialog-close color="primary">No</button>
+        </mat-dialog-actions>
+
+      </div>
+    </form>
   </div>
-  <div mat-dialog-actions align="center">
-      <button mat-button (click)="onYesClick()" cdkFocusInitial class="actionBtn">SI</button>
-      <button mat-button (click)="closeModal()" class="closeBtn">NO</button>
-  </div>
+
+  <!-- <div mat-dialog-actions align="center">
+    <button mat-button (click)="onYesClick()" cdkFocusInitial class="actionBtn">SI</button>
+    <button mat-button (click)="closeModal()" class="closeBtn">NO</button>
+  </div> -->
 </div>

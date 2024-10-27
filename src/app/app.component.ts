@@ -6,7 +6,7 @@ import { ApplicationRef, Component, NgZone, inject, ɵglobal } from '@angular/co
   styleUrl: './app.component.scss'
 })
 export class AppComponent {
-  title = 'TSR_V2';
+  title = 'TSR';
   private ngZone = inject(NgZone);
   constructor() {
     const ngZone = ɵglobal.Zone;

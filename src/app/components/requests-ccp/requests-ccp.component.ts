@@ -12,7 +12,14 @@ import {
   makeStateKey,
 } from '@angular/core';
 import { MatPaginator } from '@angular/material/paginator';
-import { Observable, ReplaySubject, Subject, Subscription, take, takeUntil } from 'rxjs';
+import {
+  Observable,
+  ReplaySubject,
+  Subject,
+  Subscription,
+  take,
+  takeUntil,
+} from 'rxjs';
 import { ApiService } from '../../services/api.service';
 import {
   MAT_DIALOG_DATA,
@@ -22,11 +29,7 @@ import {
 } from '@angular/material/dialog';
 import { MatTableDataSource } from '@angular/material/table';
 import { SnackbarService } from '../../services/snackbar.service';
-import {
-  FormGroup,
-  FormControl,
-  Validators,
-} from '@angular/forms';
+import { FormGroup, FormControl, Validators } from '@angular/forms';
 import { MatSelect } from '@angular/material/select';
 import { RequestComponent } from '../../dialogs/request/request.component';
 import { environment } from '../../../environments/environment.development';
@@ -44,9 +47,7 @@ import { LogoutService } from '../../services/logout.service';
 import { JwtService } from '../../services/jwt.service';
 import { ThemePalette } from '@angular/material/core';
 import { ProgressSpinnerMode } from '@angular/material/progress-spinner';
-import {
-  bottomToTopAnimation,
-} from '../../animations/tsr_animations';
+import { bottomToTopAnimation } from '../../animations/tsr_animations';
 import { HelpersService } from '../../services/helpers.service';
 import { MyErrorStateMatcher } from '../../shared/errorMatcher';
 import { NotificationsService } from '../../services/notifications.service';
@@ -93,7 +94,6 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private dataSubscription!: Subscription;
 
-
   options = new FormGroup({
     boxNumber: new FormControl(null),
     invoiceNumber: new FormControl(null),
@@ -119,7 +119,11 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
   // private subscription!: Subscription;
   private recordUpdatedSubscription!: Subscription;
   private recordRemovedSubscription!: Subscription;
-  private eventHandlers: Array<{ event: string, handler: (...args: any[]) => void }> = [];
+  private recordNewSubscription!: Subscription;
+  private eventHandlers: Array<{
+    event: string;
+    handler: (...args: any[]) => void;
+  }> = [];
 
   constructor(
     private API: ApiService,
@@ -131,37 +135,78 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
     private recordService: NotificationsService,
     private appRef: ApplicationRef,
     private transferState: TransferState,
-    @Inject(PLATFORM_ID) private platformId: Object,
-  ) {
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {}
 
-  }
-
-   ngOnInit() {
-
-
+  ngOnInit() {
     this.checkUser();
     this.patchDateRanges();
 
+    this.loadInitialData()
+      .then(() => {
+        this.startSignalRConnection();
+        this.appRef.isStable.pipe(take(1)).subscribe(() => {
+          this.appRef.tick();
+        });
+      })
+      .catch((error) => {
+        this.helpers.returnError(error);
+      });
+
+    // this.recordService.startConnection().then(() => {
+    //   console.log('SignalR connection established');
+    // }).catch((err) => {
+    //   console.error('Error establishing SignalR connection in ngOnInit:', err);
+    // });
+  }
+
+  private loadInitialData(): Promise<void> {
+    this.showTable = true;
+    return new Promise((resolve, reject) => {
+      this.dataSubscription = this.API.getServiceRequest()
+        .pipe(takeUntil(this._onDestroy))
+        .subscribe({
+          next: (res: any) => {
+            this.spinner = false;
+            this.dataSource = new MatTableDataSource<any>(res);
+            this.dataSource.paginator = this.paginator1;
+            this.dataSource.data.length = res.length;
+            this.dataObs$ = this.dataSource.connect();
+            this.showTable = false;
+            this.checkSearchBar();
+            resolve(); // Resolve the promise once data is loaded
+          },
+          error: (err: any) => {
+            this.spinner = false;
+            this.helpers.returnError(err);
+            reject(err); // Reject the promise if there's an error
+          },
+        });
+    });
+  }
+
+  private startSignalRConnection(): void {
     this.recordService.startConnection();
-
-    this.recordService.getNewRecordObservable()
+    this.recordUpdatedSubscription = this.recordService
+      .getUpdatedRecordObservable()
       .pipe(takeUntil(this._onDestroy))
       .subscribe(() => {
         this.getSr();
       });
 
-    this.recordService.getUpdatedRecordObservable()
+    this.recordRemovedSubscription = this.recordService
+      .getRemovedRecordObservable()
       .pipe(takeUntil(this._onDestroy))
       .subscribe(() => {
         this.getSr();
       });
 
-    this.recordService.getRemovedRecordObservable()
+    this.recordNewSubscription = this.recordService
+      .getNewRecordObservable()
       .pipe(takeUntil(this._onDestroy))
       .subscribe(() => {
         this.getSr();
       });
-
   }
 
   ngAfterViewInit(): void {
@@ -169,29 +214,30 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
     this.getDrops();
   }
 
-  checkUser(){
+  checkUser() {
     this.isCustomer = this.jwt.getIsCustomer() === 'False' ? false : true;
   }
 
-
-   getSr() {
-    this.dataSubscription =  this.API.getServiceRequest()
-    .pipe(takeUntil(this._onDestroy))
-    .subscribe({
-      next: (res: any) => {
-        this.spinner = false;
-        this.dataSource = new MatTableDataSource<any>(res);
-        this.dataSource.paginator = this.paginator1;
-        this.dataSource.data.length = res.length;
-        this.dataObs$ = this.dataSource.connect();
-        this.showTable = false;
-        this.checkSearchBar();
-      },
-      error: (err: any) => {
-        this.spinner = false;
-        this.helpers.returnError(err);
-      },
-    });
+  getSr() {
+    this.spinner = true;
+    this.showTable = true;
+    this.dataSubscription = this.API.getServiceRequest()
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe({
+        next: (res: any) => {
+          this.spinner = false;
+          this.dataSource = new MatTableDataSource<any>(res);
+          this.dataSource.paginator = this.paginator1;
+          this.dataSource.data.length = res.length;
+          this.dataObs$ = this.dataSource.connect();
+          this.showTable = false;
+          this.checkSearchBar();
+        },
+        error: (err: any) => {
+          this.spinner = false;
+          this.helpers.returnError(err);
+        },
+      });
   }
 
   cleanFilters() {
@@ -226,8 +272,6 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
       end,
     } = obj;
 
-    this.spinner = true;
-
     if (start !== null && end !== null) {
       start = this.convert(start);
       end = this.convert(end);
@@ -261,21 +305,25 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
       End: end,
       Priority: priority,
     };
-
-    this.API.getServicesFiltered(_obj).pipe(takeUntil(this._onDestroy)).subscribe({
-      next: (res: any) => {
-        this.spinner = false;
-        this.dataSource = new MatTableDataSource<any>(res);
-        this.dataSource.paginator = this.paginator1;
-        this.dataSource.data.length = res.length;
-        this.dataObs$ = this.dataSource.connect();
-      },
-      error: (err) => {
-        this.dataSource = new MatTableDataSource<any>();
-        this.spinner = false;
-        this.helpers.returnError(err);
-      },
-    });
+    this.spinner = true;
+    this.showTable = true;
+    this.API.getServicesFiltered(_obj)
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe({
+        next: (res: any) => {
+          this.spinner = false;
+          this.dataSource = new MatTableDataSource<any>(res);
+          this.dataSource.paginator = this.paginator1;
+          this.dataSource.data.length = res.length;
+          this.dataObs$ = this.dataSource.connect();
+          this.showTable = false;
+        },
+        error: (err) => {
+          this.dataSource = new MatTableDataSource<any>();
+          this.spinner = false;
+          this.helpers.returnError(err);
+        },
+      });
   }
 
   openDialog(obj: any): void {
@@ -286,11 +334,14 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
 
     dialogConfig.panelClass = '';
     const dialogRef = this.dialog.open(RequestComponent, dialogConfig);
-    dialogRef.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe({
-      next: (res: any) => {
-        // this.getSr();
-      },
-    });
+    dialogRef
+      .afterClosed()
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe({
+        next: (res: any) => {
+          // this.getSr();
+        },
+      });
   }
 
   applyFilter(event: Event) {
@@ -338,9 +389,12 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
     dialogConfig.data = obj;
     if (elem.status === 1 && this.isCustomer === true) {
       const dialogConfirm = this.dialog.open(UpdateBoxDialog, dialogConfig);
-      dialogConfirm.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe((confirm) => {
-        this.checkFilters();
-      });
+      dialogConfirm
+        .afterClosed()
+        .pipe(takeUntil(this._onDestroy))
+        .subscribe((confirm) => {
+          this.checkFilters();
+        });
     }
   }
 
@@ -356,9 +410,12 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (status === 1 && this.isCustomer === true) {
       const dialogConfirm = this.dialog.open(UpdateReferenceAdm, dialogConfig);
-      dialogConfirm.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe((confirm) => {
-        this.checkFilters();
-      });
+      dialogConfirm
+        .afterClosed()
+        .pipe(takeUntil(this._onDestroy))
+        .subscribe((confirm) => {
+          this.checkFilters();
+        });
     }
   }
 
@@ -369,9 +426,12 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (status === 1 && this.isCustomer === true) {
       const dialogConfirm = this.dialog.open(UpdateOperationAdm, dialogConfig);
-      dialogConfirm.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe((confirm) => {
-        this.checkFilters();
-      });
+      dialogConfirm
+        .afterClosed()
+        .pipe(takeUntil(this._onDestroy))
+        .subscribe((confirm) => {
+          this.checkFilters();
+        });
     }
   }
 
@@ -380,9 +440,12 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
       const dialogConfig = new MatDialogConfig();
       dialogConfig.data = elem;
       const dialogConfirm = this.dialog.open(UuidDialog, dialogConfig);
-      dialogConfirm.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe({
-        next: (res: any) => {
-          if (res.data !== undefined && res.data !== null) {
+      dialogConfirm
+        .afterClosed()
+        .pipe(takeUntil(this._onDestroy))
+        .subscribe({
+          next: (res: any) => {
+            if (res.data !== undefined && res.data !== null) {
               const { serviceRequestId } = elem;
               let service = {
                 service: {
@@ -390,12 +453,12 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
                 },
               };
               this.documentDialog(service);
-          }
-        },
-        error: (err) => {
-          this.helpers.returnError(err);
-        },
-      });
+            }
+          },
+          error: (err) => {
+            this.helpers.returnError(err);
+          },
+        });
     } else {
       this._snackBar.snackBarMessage(
         'Es necesario completar los documentos / información previa a  este paso.',
@@ -412,14 +475,17 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
       this.isCustomer === false
     ) {
       const dialogConfirm = this.dialog.open(UpdateTmwAdm, dialogConfig);
-      dialogConfirm.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe({
-        next: (res: any) => {
-          this.checkFilters();
-        },
-        error: (err) => {
-          this.helpers.returnError(err);
-        },
-      });
+      dialogConfirm
+        .afterClosed()
+        .pipe(takeUntil(this._onDestroy))
+        .subscribe({
+          next: (res: any) => {
+            this.checkFilters();
+          },
+          error: (err) => {
+            this.helpers.returnError(err);
+          },
+        });
     }
   }
 
@@ -429,13 +495,23 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
     dialogConfig.maxWidth = '100vw';
     dialogConfig.data = obj;
     dialogConfig.panelClass = '';
+
+    // Remove focus from any currently focused element
+    const activeElement = document.activeElement as HTMLElement;
+    if (activeElement) {
+        activeElement.blur(); // Removes focus from the active element
+    }
+
     const dialogRef = this.dialog.open(DocumentsComponent, dialogConfig);
-    dialogRef.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe({
-      next: (res) => {
-        this.checkFilters();
-      },
-    });
-  }
+    dialogRef.afterClosed()
+        .pipe(takeUntil(this._onDestroy))
+        .subscribe({
+            next: (res) => {
+                this.checkFilters();
+            },
+        });
+}
+
 
   returnStatus(elem: any) {
     const dialogConfig = new MatDialogConfig();
@@ -443,47 +519,58 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
 
     const dialogConfirm = this.dialog.open(ReturnStatusDialog, dialogConfig);
 
-    dialogConfirm.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe((confirm) => {
-      if (confirm !== undefined) {
-        if (confirm.data) {
-          let obj: ReturnToState = {
-            ServiceRequestId: elem.serviceRequestId,
-          };
+    dialogConfirm
+      .afterClosed()
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe((confirm) => {
+        console.log(confirm);
+        if (confirm !== undefined) {
+          if (confirm.data) {
+            const { otherReason, reason, reasonId, serviceRequestId } =
+              confirm.data;
+            let obj = {
+              ServiceRequestId: elem.serviceRequestId,
+              ReasonId: reasonId === null ? 0 : reasonId,
+              Reason: reason,
+              OtherReason: otherReason,
+            };
 
-          this.API.returnToState(obj).pipe(takeUntil(this._onDestroy)).subscribe({
-            next: (res: any) => {
-              if (res.state === 0) {
-                this.spinner = false;
-                this._snackBar.snackBarMessage(res.message, true);
-                this.checkFilters();
-              }
-            },
-            error: (err: any) => {
-              if (err.error.state !== undefined) {
-                const { state, message } = err.error;
-                this.spinner = false;
-                if (state === 1) {
-                  this._snackBar.snackBarMessage(message, false);
-                } else if (state === 401) {
-                  this._snackBar.snackBarMessage(message, false);
-                  this.logOut.logOut();
-                } else {
-                  this._snackBar.snackBarMessage(
-                    'Algo ha salido mal, intente mas tarde.',
-                    false
-                  );
-                }
-              } else {
-                this._snackBar.snackBarMessage(
-                  'Algo ha salido mal, intente mas tarde.',
-                  false
-                );
-              }
-            },
-          });
+            this.API.returnToState(obj)
+              .pipe(takeUntil(this._onDestroy))
+              .subscribe({
+                next: (res: any) => {
+                  if (res.state === 0) {
+                    this.spinner = false;
+                    this._snackBar.snackBarMessage(res.message, true);
+                    this.checkFilters();
+                  }
+                },
+                error: (err: any) => {
+                  if (err.error.state !== undefined) {
+                    const { state, message } = err.error;
+                    this.spinner = false;
+                    if (state === 1) {
+                      this._snackBar.snackBarMessage(message, false);
+                    } else if (state === 401) {
+                      this._snackBar.snackBarMessage(message, false);
+                      this.logOut.logOut();
+                    } else {
+                      this._snackBar.snackBarMessage(
+                        'Algo ha salido mal, intente mas tarde.',
+                        false
+                      );
+                    }
+                  } else {
+                    this._snackBar.snackBarMessage(
+                      'Algo ha salido mal, intente mas tarde.',
+                      false
+                    );
+                  }
+                },
+              });
+          }
         }
-      }
-    });
+      });
   }
 
   removeRequest(elem: any) {
@@ -496,61 +583,68 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
         dialogConfig
       );
 
-      dialogConfirm.afterClosed().pipe(takeUntil(this._onDestroy)).subscribe((confirm) => {
-        if (confirm.data !== undefined && confirm.data !== null) {
-          const { serviceRequestId } = elem;
+      dialogConfirm
+        .afterClosed()
+        .pipe(takeUntil(this._onDestroy))
+        .subscribe((confirm) => {
+          if (confirm.data !== undefined && confirm.data !== null) {
+            const { serviceRequestId } = elem;
 
-          const obj: RemoveService = {
-            ServiceRequestId: serviceRequestId,
-          };
+            const obj: RemoveService = {
+              ServiceRequestId: serviceRequestId,
+            };
 
-          this.API.removeRequest(obj).pipe(takeUntil(this._onDestroy)).subscribe({
-            next: (res: any) => {
-              if (res.state === 0) {
-                this._snackBar.snackBarMessage(res.message, true);
-                this.checkFilters();
-              }
-            },
-            error: (err: any) => {
-              this.helpers.returnError(err);
-            },
-          });
-        }
-      });
+            this.API.removeRequest(obj)
+              .pipe(takeUntil(this._onDestroy))
+              .subscribe({
+                next: (res: any) => {
+                  if (res.state === 0) {
+                    this._snackBar.snackBarMessage(res.message, true);
+                    this.checkFilters();
+                  }
+                },
+                error: (err: any) => {
+                  this.helpers.returnError(err);
+                },
+              });
+          }
+        });
     }
   }
 
   async getCustomers() {
-    await this.API.getCompaniesForCustomers().pipe(takeUntil(this._onDestroy)).subscribe({
-      next: (res: any) => {
-        if (this.isCustomer === true) {
-          this.customersList = res;
-          this.companyCtrl.setValue(this.customersList[4]);
-          this.filteredCompanies.next(this.customersList.slice());
-          this.companyFilterCtrl.valueChanges
-            .pipe(takeUntil(this._onDestroy))
-            .subscribe(() => {
-              this.filterCompanies();
+    await this.API.getCompaniesForCustomers()
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe({
+        next: (res: any) => {
+          if (this.isCustomer === true) {
+            this.customersList = res;
+            this.companyCtrl.setValue(this.customersList[4]);
+            this.filteredCompanies.next(this.customersList.slice());
+            this.companyFilterCtrl.valueChanges
+              .pipe(takeUntil(this._onDestroy))
+              .subscribe(() => {
+                this.filterCompanies();
+              });
+            this.options.patchValue({
+              customer: res[0].customerId,
             });
-          this.options.patchValue({
-            customer: res[0].customerId,
-          });
-        } else {
-          this.customersList = res;
-          this.companyCtrl.setValue(this.customersList[4]);
-          this.filteredCompanies.next(this.customersList.slice());
-          this.companyFilterCtrl.valueChanges
-            .pipe(takeUntil(this._onDestroy))
-            .subscribe(() => {
-              this.filterCompanies();
-            });
-        }
-      },
-      error: (err: any) => {
-        this.customersList = [];
-        this.helpers.returnError(err);
-      },
-    });
+          } else {
+            this.customersList = res;
+            this.companyCtrl.setValue(this.customersList[4]);
+            this.filteredCompanies.next(this.customersList.slice());
+            this.companyFilterCtrl.valueChanges
+              .pipe(takeUntil(this._onDestroy))
+              .subscribe(() => {
+                this.filterCompanies();
+              });
+          }
+        },
+        error: (err: any) => {
+          this.customersList = [];
+          this.helpers.returnError(err);
+        },
+      });
   }
 
   protected setInitialValueCompanies() {
@@ -583,27 +677,31 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   async getOperations() {
-    await this.API.getOperationTypes().pipe(takeUntil(this._onDestroy)).subscribe({
-      next: (res: any) => {
-        this.operationsList = res;
-      },
-      error: (err) => {
-        this.operationsList = [];
-        this.helpers.returnError(err);
-      },
-    });
+    await this.API.getOperationTypes()
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe({
+        next: (res: any) => {
+          this.operationsList = res;
+        },
+        error: (err) => {
+          this.operationsList = [];
+          this.helpers.returnError(err);
+        },
+      });
   }
 
   async getStatus() {
-    await this.API.getStatus().pipe(takeUntil(this._onDestroy)).subscribe({
-      next: (res: any) => {
-        this.statusList = res;
-      },
-      error: (err) => {
-        this.statusList = [];
-        this.helpers.returnError(err);
-      },
-    });
+    await this.API.getStatus()
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe({
+        next: (res: any) => {
+          this.statusList = res;
+        },
+        error: (err) => {
+          this.statusList = [];
+          this.helpers.returnError(err);
+        },
+      });
   }
 
   patchDateRanges() {
@@ -615,26 +713,34 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  getDrops(){
+  getDrops() {
     this.getOperations();
     this.getCustomers();
     this.getStatus();
   }
 
-
   ngOnDestroy() {
-
-    // if (this.subscription) {
-    //   this.subscription.unsubscribe();
-    // }
-    // this.recordUpdatedSubscription.unsubscribe();
-    // this.recordRemovedSubscription.unsubscribe();
     this._onDestroy.next();
     this._onDestroy.complete();
-    this.dataSubscription.unsubscribe();
+
+    if (this.dataSubscription) {
+      this.dataSubscription.unsubscribe();
+    }
+
+    if (this.recordRemovedSubscription) {
+      this.recordRemovedSubscription.unsubscribe();
+    }
+
+    if (this.recordNewSubscription) {
+      this.recordNewSubscription.unsubscribe();
+    }
+
+    if (this.recordUpdatedSubscription) {
+      this.recordUpdatedSubscription.unsubscribe();
+    }
+
     this.recordService.stopConnection();
   }
-
 }
 
 @Component({
@@ -685,34 +791,36 @@ export class UuidDialog implements OnInit {
       Uuid: uuid,
     };
 
-    this.API.updateUuid(_obj).pipe(takeUntil(this._onDestroy)).subscribe({
-      next: (res: any) => {
-        this.spinnerOk = false;
-        if (res.state !== undefined) {
-          const { state, message } = res;
-          if (state === 0) {
-            this._snackBar.snackBarMessage(message, true);
-            this.dialogConfirm.close({ data: true });
-          }
-        }
-      },
-      error: (err) => {
-        if (err.error !== undefined) {
+    this.API.updateUuid(_obj)
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe({
+        next: (res: any) => {
           this.spinnerOk = false;
-          const { state, message } = err.error;
-          if (state === 1) {
-            this._snackBar.snackBarMessage(message, false);
-          } else if (state === 401) {
-            this.logOut.logOut();
+          if (res.state !== undefined) {
+            const { state, message } = res;
+            if (state === 0) {
+              this._snackBar.snackBarMessage(message, true);
+              this.dialogConfirm.close({ data: true });
+            }
           }
-        } else {
-          this._snackBar.snackBarMessage(
-            'Algo ha salido mal, intente mas tarde.',
-            false
-          );
-        }
-      },
-    });
+        },
+        error: (err) => {
+          if (err.error !== undefined) {
+            this.spinnerOk = false;
+            const { state, message } = err.error;
+            if (state === 1) {
+              this._snackBar.snackBarMessage(message, false);
+            } else if (state === 401) {
+              this.logOut.logOut();
+            }
+          } else {
+            this._snackBar.snackBarMessage(
+              'Algo ha salido mal, intente mas tarde.',
+              false
+            );
+          }
+        },
+      });
   }
 
   changeText() {
@@ -728,23 +836,119 @@ export class UuidDialog implements OnInit {
 export class ReturnStatusDialog implements OnInit {
   folio: string = '';
   customer: string = '';
+  matcher = new MyErrorStateMatcher();
+  statusForm = new FormGroup({
+    serviceRequestId: new FormControl('', [Validators.required]),
+    reasonId: new FormControl(null, [Validators.required]),
+    reason: new FormControl(''),
+    otherReason: new FormControl(false), // Adding checkbox with default value false
+  });
+  reasonsList: any;
+  public reasonsCtrl: FormControl = new FormControl();
+
+  public reasonFilterCtrl: FormControl = new FormControl();
+
+  public filteredReasons: ReplaySubject<any[]> = new ReplaySubject(1);
+
+  private _onDestroy = new Subject<void>();
+
+  @ViewChild('singleSelect', { static: true }) singleSelect!: MatSelect;
+
   constructor(
     public dialogConfirm: MatDialogRef<ReturnStatusDialog>,
-    @Inject(MAT_DIALOG_DATA) public data: any
+    @Inject(MAT_DIALOG_DATA) public data: any,
+    private API: ApiService,
+    private helpers: HelpersService
   ) {}
 
   ngOnInit(): void {
+    this.getReasons();
     const { serviceRequestId, customer } = this.data;
     this.customer = customer;
     this.folio = serviceRequestId;
+    this.statusForm.patchValue({
+      serviceRequestId: serviceRequestId,
+    });
+
+    // Subscribe to changes on the 'otherReason' checkbox
+    this.statusForm
+      .get('otherReason')
+      ?.valueChanges.subscribe((otherReason: boolean | null) => {
+        if (otherReason === true) {
+          // Enable the reason field or add validators
+          this.statusForm.controls['reason'].setValue('');
+          this.statusForm.controls['reasonId'].setValue(null);
+          this.statusForm.get('reason')?.setValidators([Validators.required]);
+          this.statusForm.get('reason')?.updateValueAndValidity();
+          this.statusForm.get('reasonId')?.clearValidators();
+          this.statusForm.get('reasonId')?.updateValueAndValidity();
+        } else {
+          // Clear validators if checkbox is unchecked or null
+          this.statusForm.get('reasonId')?.setValidators([Validators.required]);
+          this.statusForm.get('reasonId')?.updateValueAndValidity();
+          this.statusForm.get('reason')?.clearValidators();
+          this.statusForm.get('reason')?.updateValueAndValidity();
+          this.statusForm.controls['reason'].setValue(null);
+          this.statusForm.controls['reasonId'].setValue(null);
+        }
+      });
   }
 
-  onYesClick(): void {
-    this.dialogConfirm.close({ data: true });
+  onYesClick(obj: any): void {
+    this.dialogConfirm.close({ data: obj });
   }
 
   closeModal() {
     this.dialogConfirm.close();
+  }
+
+  protected setInitialValueReasons() {
+    this.filteredReasons
+      .pipe(take(0), takeUntil(this._onDestroy))
+      .subscribe(() => {
+        this.singleSelect.compareWith = (a: any, b: any) =>
+          a && b && a.id === b.id;
+      });
+  }
+
+  protected filterReasons() {
+    if (!this.reasonsList) {
+      return;
+    }
+
+    let search = this.reasonFilterCtrl.value;
+    if (!search) {
+      this.filteredReasons.next(this.reasonsList.slice());
+      return;
+    } else {
+      search = search.toLowerCase();
+    }
+
+    this.filteredReasons.next(
+      this.reasonsList.filter(
+        (company: any) => company.reason.toLowerCase().indexOf(search) > -1
+      )
+    );
+  }
+
+  getReasons() {
+    this.API.getReasons().subscribe({
+      next: (res: any) => {
+        this.reasonsList = res;
+        this.reasonsCtrl.setValue(this.reasonsList[4]);
+        this.filteredReasons.next(this.reasonsList.slice());
+        this.reasonFilterCtrl.valueChanges
+          .pipe(takeUntil(this._onDestroy))
+          .subscribe(() => {
+            this.filterReasons();
+          });
+      },
+      error: (err: any) => {
+        this.reasonsList = [];
+        this.statusForm.controls['reasonId'].setErrors({ incorrect: true });
+        this.helpers.returnError(err);
+      },
+    });
   }
 }
 
@@ -820,20 +1024,22 @@ export class UpdateBoxDialog implements OnInit {
       BoxNumber: String(boxNumber),
     };
 
-    this.API.updateBoxNumber(_obj).pipe(takeUntil(this._onDestroy)).subscribe({
-      next: (res: any) => {
-        this.spinner = false;
-        if (res.state !== undefined) {
-          const { state, message } = res;
-          this._snackBar.snackBarMessage(message, true);
-          this.dialogConfirm.close({ data: true });
-        }
-      },
-      error: (err) => {
-        this.spinner = false;
-        this.helpers.returnError(err);
-      },
-    });
+    this.API.updateBoxNumber(_obj)
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe({
+        next: (res: any) => {
+          this.spinner = false;
+          if (res.state !== undefined) {
+            const { state, message } = res;
+            this._snackBar.snackBarMessage(message, true);
+            this.dialogConfirm.close({ data: true });
+          }
+        },
+        error: (err) => {
+          this.spinner = false;
+          this.helpers.returnError(err);
+        },
+      });
   }
 
   changeText() {
@@ -892,20 +1098,22 @@ export class UpdateReferenceAdm implements OnInit {
       Reference: reference,
     };
 
-    this.API.updateReference(_obj).pipe(takeUntil(this._onDestroy)).subscribe({
-      next: (res: any) => {
-        this.spinner = false;
-        if (res.state !== undefined) {
-          const { state, message } = res;
-          this._snackBar.snackBarMessage(message, true);
-          this.dialogConfirm.close({ data: true });
-        }
-      },
-      error: (err: any) => {
-        this.spinner = false;
-        this.helpers.returnError(err);
-      },
-    });
+    this.API.updateReference(_obj)
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe({
+        next: (res: any) => {
+          this.spinner = false;
+          if (res.state !== undefined) {
+            const { state, message } = res;
+            this._snackBar.snackBarMessage(message, true);
+            this.dialogConfirm.close({ data: true });
+          }
+        },
+        error: (err: any) => {
+          this.spinner = false;
+          this.helpers.returnError(err);
+        },
+      });
   }
 
   changeText() {
@@ -954,15 +1162,17 @@ export class UpdateOperationAdm implements OnInit {
   }
 
   async getOperations() {
-    await this.API.getOperationTypes().pipe(takeUntil(this._onDestroy)).subscribe({
-      next: (res) => {
-        this.operationsList = res;
-      },
-      error: (err) => {
-        this.operationsList = [];
-        this.helpers.returnError(err);
-      },
-    });
+    await this.API.getOperationTypes()
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe({
+        next: (res) => {
+          this.operationsList = res;
+        },
+        error: (err) => {
+          this.operationsList = [];
+          this.helpers.returnError(err);
+        },
+      });
   }
 
   updateOperation(obj: any) {
@@ -975,23 +1185,25 @@ export class UpdateOperationAdm implements OnInit {
     };
     this.spinnerOk = true;
 
-    this.API.updateOperationType(_obj).pipe(takeUntil(this._onDestroy)).subscribe({
-      next: (res: any) => {
-        this.spinnerOk = false;
-        if (res.state !== undefined) {
-          const { state, message } = res;
-          if (state === 0) {
-            this._snackBar.snackBarMessage(message, true);
-          }
+    this.API.updateOperationType(_obj)
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe({
+        next: (res: any) => {
+          this.spinnerOk = false;
+          if (res.state !== undefined) {
+            const { state, message } = res;
+            if (state === 0) {
+              this._snackBar.snackBarMessage(message, true);
+            }
 
-          this.dialogConfirm.close();
-        }
-      },
-      error: (err) => {
-        this.spinnerOk = false;
-        this.helpers.returnError(err);
-      },
-    });
+            this.dialogConfirm.close();
+          }
+        },
+        error: (err) => {
+          this.spinnerOk = false;
+          this.helpers.returnError(err);
+        },
+      });
   }
   changeText() {
     this.errorMsgFrm = environment.messages.errorMsgFrm;
@@ -1049,19 +1261,21 @@ export class UpdateTmwAdm implements OnInit {
     };
 
     this.spinnerOk = true;
-    this.API.updateTmw(_obj).pipe(takeUntil(this._onDestroy)).subscribe({
-      next: (res: any) => {
-        this.spinnerOk = false;
-        if (res.state !== undefined) {
-          const { state, message } = res;
-          this._snackBar.snackBarMessage(message, true);
-          this.dialogConfirm.close();
-        }
-      },
-      error: (err) => {
-        this.spinnerOk = false;
-        this.helpers.returnError(err);
-      },
-    });
+    this.API.updateTmw(_obj)
+      .pipe(takeUntil(this._onDestroy))
+      .subscribe({
+        next: (res: any) => {
+          this.spinnerOk = false;
+          if (res.state !== undefined) {
+            const { state, message } = res;
+            this._snackBar.snackBarMessage(message, true);
+            this.dialogConfirm.close();
+          }
+        },
+        error: (err) => {
+          this.spinnerOk = false;
+          this.helpers.returnError(err);
+        },
+      });
   }
 }

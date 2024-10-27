@@ -2,7 +2,6 @@ import { Component, OnInit } from '@angular/core';
 import { Validators, FormBuilder } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import { environment } from '../../environments/environment.development';
 import { SnackbarService } from '../services/snackbar.service';
 
 
@@ -33,7 +32,6 @@ export class RecoverPasswordComponent implements OnInit{
   invalidPassword: Boolean = false;
 
   constructor(private _formBuilder: FormBuilder,
-    private _snackBar: MatSnackBar,
     private router: Router,
     private _snackBarSvs: SnackbarService
     ) {}
