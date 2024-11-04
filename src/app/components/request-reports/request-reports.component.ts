@@ -98,13 +98,10 @@ export class RequestReportsComponent implements OnInit, OnDestroy {
       if (result.breakpoints[CUSTOM_BREAKPOINTS.small]) {
         // Handle small screen
         this.col = '6';
-        console.log('SMALL')
       } else if (result.breakpoints[CUSTOM_BREAKPOINTS.medium]) {
         // Handle medium screen
-        console.log('MED')
       } else if (result.breakpoints[CUSTOM_BREAKPOINTS.large]) {
         // Handle large screen
-        console.log('LARGE')
       }
     });
   }

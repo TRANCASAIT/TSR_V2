@@ -26,7 +26,6 @@ export class LineChartComponent implements OnInit {
         this.myData = res;
         const customerNames: string[] = [];
         const serviceCounts: number[] = [];
-        console.log(this.myData)
 
         // const customerServicesMap = res.reduce((acc: any, customerService:any) => {
         //   labels = acc[customerService.customerName];
@@ -45,7 +44,6 @@ export class LineChartComponent implements OnInit {
           customerNames.push(customerService.customerName);
           serviceCounts.push(customerService.serviceCount);
         });
-        console.log(customerNames, serviceCounts)
 
         // const data = {
         //   labels: ['January','February','March','April','May','June','July'],

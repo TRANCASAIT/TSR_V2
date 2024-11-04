@@ -191,21 +191,18 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
       .getUpdatedRecordObservable()
       .pipe(takeUntil(this._onDestroy))
       .subscribe(() => {
-        this.getSr();
       });
 
     this.recordRemovedSubscription = this.recordService
       .getRemovedRecordObservable()
       .pipe(takeUntil(this._onDestroy))
       .subscribe(() => {
-        this.getSr();
       });
 
     this.recordNewSubscription = this.recordService
       .getNewRecordObservable()
       .pipe(takeUntil(this._onDestroy))
       .subscribe(() => {
-        this.getSr();
       });
   }
 
@@ -446,10 +443,12 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
         .subscribe({
           next: (res: any) => {
             if (res.data !== undefined && res.data !== null) {
-              const { serviceRequestId } = elem;
+              const { serviceRequestId, customerName, reference } = elem;
               let service = {
                 service: {
                   serviceRequestId: serviceRequestId,
+                  customerName: customerName,
+                  reference: reference
                 },
               };
               this.documentDialog(service);
@@ -480,7 +479,7 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
         .pipe(takeUntil(this._onDestroy))
         .subscribe({
           next: (res: any) => {
-            this.checkFilters();
+
           },
           error: (err) => {
             this.helpers.returnError(err);
@@ -507,8 +506,11 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
         .pipe(takeUntil(this._onDestroy))
         .subscribe({
             next: (res) => {
-                this.checkFilters();
+
             },
+            error: (err) => {
+              this.helpers.returnError(err);
+            }
         });
 }
 
@@ -523,7 +525,6 @@ export class RequestsCcpComponent implements OnInit, OnDestroy, AfterViewInit {
       .afterClosed()
       .pipe(takeUntil(this._onDestroy))
       .subscribe((confirm) => {
-        console.log(confirm);
         if (confirm !== undefined) {
           if (confirm.data) {
             const { otherReason, reason, reasonId, serviceRequestId } =

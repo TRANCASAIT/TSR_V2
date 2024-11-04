@@ -9,7 +9,7 @@ import { LogOutService } from './log-out.service';
 })
 export class AdminguardService {
 
-  constructor(private authService: JwtService, private router: Router, private lss: LocalstorageService, private logOut: LogOutService) {}
+  constructor(private authService: JwtService, private router: Router, private logOut: LogOutService) {}
 
   canActivate(next: ActivatedRouteSnapshot, state: RouterStateSnapshot) {
     if(this.authService.isUserAdmin())

@@ -15,7 +15,9 @@ export class AuthInterceptorService {
   constructor(
     private router: Router,
     private _snackBar: SnackbarService,
-    private logOut: LogoutService
+    private Api: ApiService,
+    private jwtts: JwtService,
+    private http: HttpClient
   ) { }
 
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
@@ -34,7 +36,7 @@ export class AuthInterceptorService {
         if (err.status === 401) {
           this._snackBar.snackBarMessage('Favor de iniciar sesión nuevamente', false);
 
-          this.logOut.logOut();
+          this.router.navigateByUrl('/login');
         }
         return throwError(() => err);
       })

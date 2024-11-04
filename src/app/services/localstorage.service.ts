@@ -7,13 +7,17 @@ export class LocalstorageService {
 
   constructor(@Inject(PLATFORM_ID) private platformId: Object) { }
 
+  private isBrowser(): boolean {
+    return isPlatformBrowser(this.platformId);
+  }
 
-
-  get() {
-    if(isPlatformBrowser(this.platformId)){
+  get(): string | null {
+    const isBrowser = this.isBrowser();
+    if (isBrowser) {
       return localStorage.getItem('Token');
+    } else {
+      return null;
     }
-    return null;
   }
 
   set(key: string, value: string): void {

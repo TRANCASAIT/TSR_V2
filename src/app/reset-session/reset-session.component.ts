@@ -52,8 +52,6 @@ export class ResetSessionComponent implements OnInit {
     this.API.validateEmail(email)
       .pipe(
         catchError((err) => {
-          console.log(err);
-
           return of(err);
         })
       )
@@ -89,7 +87,6 @@ export class ResetSessionComponent implements OnInit {
         })
       ).subscribe((result) => {
         if(result){
-          console.log(result)
           const { state, message } = result;
 
           if(state === 0){

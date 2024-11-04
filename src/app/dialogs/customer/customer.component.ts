@@ -207,7 +207,6 @@ export class CustomerComponent implements OnInit {
     await this.API.getCitiesperState(stateId).subscribe({
       next: (res: any) => {
         this.citiesList = res;
-        console.log(res);
       },
       error: (err) => {
         this.citiesList = [];

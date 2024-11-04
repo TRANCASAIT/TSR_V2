@@ -239,7 +239,6 @@ export class RequestsComponent implements OnInit, OnDestroy{
 
 
   documentDialog(obj: any) {
-    console.log(obj);
     const dialogConfig = new MatDialogConfig();
     dialogConfig.width = '92%';
     dialogConfig.maxWidth = '100vw';

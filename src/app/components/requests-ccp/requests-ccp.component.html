@@ -169,7 +169,7 @@
               <td mat-cell *matCellDef="let element"
                 [matTooltip]="((element.statusId !== 5) && (isCustomer === false)) ? 'Agregar Folio Fiscal' : ''"
                 [ngClass]="((element.statusId === 4) && (!isCustomer)) ? 'pointer' : ''"
-                (click)="updateUuid({serviceRequestId: element.serviceRequestId, uuid: element.uuid, status: element.statusId })">
+                (click)="updateUuid({serviceRequestId: element.serviceRequestId, uuid: element.uuid, status: element.statusId, reference: element.reference, customerName: element.customerName})">
                 {{element.uuid}} </td>
             </ng-container>
 
